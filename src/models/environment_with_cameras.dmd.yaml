@@ -1,0 +1,49 @@
+
+directives:
+- add_directives:
+    file: package://stacking/environment.dmd.yaml
+
+- add_frame:
+    name: camera0_origin
+    X_PF:
+        base_frame: world
+        rotation: !Rpy { deg: [-130.0, 0, 0.0]}
+        translation: [.5, -.3, .4]
+
+- add_model:
+    name: camera0
+    file: package://stacking/camera_box.sdf
+
+- add_weld:
+    parent: camera0_origin
+    child: camera0::base
+
+- add_frame:
+    name: camera1_origin
+    X_PF:
+        base_frame: world
+        rotation: !Rpy { deg: [-150., 0, 90.0]}
+        translation: [.7, 0.05, .5]
+
+- add_model:
+    name: camera1
+    file: package://stacking/camera_box.sdf
+
+- add_weld:
+    parent: camera1_origin
+    child: camera1::base
+
+- add_frame:
+    name: camera2_origin
+    X_PF:
+        base_frame: world
+        rotation: !Rpy { deg: [-140., 0, -150.0]}
+        translation: [.25, .35, .45]
+
+- add_model:
+    name: camera2
+    file: package://stacking/camera_box.sdf
+
+- add_weld:
+    parent: camera2_origin
+    child: camera2::base

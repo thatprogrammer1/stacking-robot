@@ -1,0 +1,7 @@
+
+directives:
+- add_directives:
+    file: package://stacking/iiwa_and_wsg.dmd.yaml
+
+- add_directives:
+    file: package://stacking/environment_with_cameras.dmd.yaml

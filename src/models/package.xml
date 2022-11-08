@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<package>
+  <name>stacking</name>
+  <version>1.0.0</version>
+  <description>
+    This package provides the models used in our 6.421 final project
+  </description>
+  <maintainer email="ethany@mit.edu">Ethan Yang</maintainer>
+  <license>BSD</license>
+</package>

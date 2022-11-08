@@ -86,6 +86,12 @@ def BuildStackingDiagram(meshcat):
                     grasp_selector.get_input_port(1))
     builder.Connect(station.GetOutputPort("camera2_point_cloud"),
                     grasp_selector.get_input_port(2))
+    builder.Connect(station.GetOutputPort("camera0_label_image"),
+                    grasp_selector.get_input_port(3))
+    builder.Connect(station.GetOutputPort("camera1_label_image"),
+                    grasp_selector.get_input_port(4))
+    builder.Connect(station.GetOutputPort("camera2_label_image"),
+                    grasp_selector.get_input_port(5))
     builder.Connect(station.GetOutputPort("body_poses"),
                     grasp_selector.GetInputPort("body_poses"))
 

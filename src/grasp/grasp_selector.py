@@ -4,7 +4,7 @@ import numpy as np
 from pydrake.all import (AbstractValue, AddMultibodyPlantSceneGraph, Concatenate, DiagramBuilder, LeafSystem, Parser,
                          PointCloud,
                          RigidTransform,
-                         RollPitchYaw)
+                         RollPitchYaw, ImageLabel16I)
 
 from manipulation import FindResource, running_as_notebook
 from manipulation.clutter import GenerateAntipodalGraspCandidate
@@ -32,6 +32,11 @@ class GraspSelector(LeafSystem):
         self.DeclareAbstractInputPort("cloud0_W", model_point_cloud)
         self.DeclareAbstractInputPort("cloud1_W", model_point_cloud)
         self.DeclareAbstractInputPort("cloud2_W", model_point_cloud)
+        label_images = AbstractValue.Make(ImageLabel16I(640, 480))
+        self.DeclareAbstractInputPort("label0_W", label_images)
+        self.DeclareAbstractInputPort("label1_W", label_images)
+        self.DeclareAbstractInputPort("label2_W", label_images)
+
         self.DeclareAbstractInputPort(
             "body_poses", AbstractValue.Make([RigidTransform()]))
 
@@ -56,7 +61,8 @@ class GraspSelector(LeafSystem):
         self._camera_body_indices = camera_body_indices
 
     def SelectGrasp(self, context, output):
-        body_poses = self.get_input_port(3).Eval(context)
+        body_poses = self.get_input_port(
+            self.GetInputPort("body_poses").get_index()).Eval(context)
         pcd = []
         for i in range(3):
             cloud = self.get_input_port(i).Eval(context)
@@ -66,6 +72,9 @@ class GraspSelector(LeafSystem):
             # Flip normals toward camera
             X_WC = body_poses[self._camera_body_indices[i]]
             pcd[i].FlipNormalsTowardPoint(X_WC.translation())
+        # for i in range(3, 6):
+        #     labels = self.get_input_port(i).Eval(context)
+        #     print(np.unique(labels.data))
         merged_pcd = Concatenate(pcd)
         down_sampled_pcd = merged_pcd.VoxelizedDownSample(voxel_size=0.005)
 

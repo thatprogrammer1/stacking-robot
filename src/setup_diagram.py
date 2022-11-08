@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from planning.stacking_planner import StackingPlanner
 from pydrake.all import (DiagramBuilder,
                          MeshcatVisualizer, PortSwitch)
 from manipulation.scenarios import (
@@ -20,7 +21,7 @@ directives:
     file: package://stacking/clutter_w_cameras.dmd.yaml
 """
 
-    for i in range(3):
+    for i in range(2):
         model_directives += f"""
 - add_model:
     name: brick{i}
@@ -63,13 +64,12 @@ def BuildStaticDiagram(meshcat):
 
 
 def BuildStackingDiagram(meshcat):
-    return BuildStaticDiagram(meshcat)
     builder = DiagramBuilder()
 
     station = builder.AddSystem(GetStation())
     plant = station.GetSubsystemByName("plant")
 
-    x_bin_grasp_selector = builder.AddSystem(
+    grasp_selector = builder.AddSystem(
         GraspSelector(plant,
                       plant.GetModelInstanceByName("bin0"),
                       camera_body_indices=[
@@ -81,41 +81,32 @@ def BuildStackingDiagram(meshcat):
                               plant.GetModelInstanceByName("camera2"))[0]
                       ]))
     builder.Connect(station.GetOutputPort("camera0_point_cloud"),
-                    x_bin_grasp_selector.get_input_port(0))
+                    grasp_selector.get_input_port(0))
     builder.Connect(station.GetOutputPort("camera1_point_cloud"),
-                    x_bin_grasp_selector.get_input_port(1))
+                    grasp_selector.get_input_port(1))
     builder.Connect(station.GetOutputPort("camera2_point_cloud"),
-                    x_bin_grasp_selector.get_input_port(2))
+                    grasp_selector.get_input_port(2))
     builder.Connect(station.GetOutputPort("body_poses"),
-                    x_bin_grasp_selector.GetInputPort("body_poses"))
+                    grasp_selector.GetInputPort("body_poses"))
 
-    # x_bin_grasp_selector = builder.AddSystem(
-    #     GraspSelector(plant,
-    #                   plant.GetModelInstanceByName("bin1"),
-    #                   camera_body_indices=[
-    #                       plant.GetBodyIndices(
-    #                           plant.GetModelInstanceByName("camera3"))[0],
-    #                       plant.GetBodyIndices(
-    #                           plant.GetModelInstanceByName("camera4"))[0],
-    #                       plant.GetBodyIndices(
-    #                           plant.GetModelInstanceByName("camera5"))[0]
-    #                   ]))
-    # builder.Connect(station.GetOutputPort("camera3_point_cloud"),
-    #                 x_bin_grasp_selector.get_input_port(0))
-    # builder.Connect(station.GetOutputPort("camera4_point_cloud"),
-    #                 x_bin_grasp_selector.get_input_port(1))
-    # builder.Connect(station.GetOutputPort("camera5_point_cloud"),
-    #                 x_bin_grasp_selector.get_input_port(2))
+    # planner = builder.AddSystem(Planner(plant))
     # builder.Connect(station.GetOutputPort("body_poses"),
-    #                 x_bin_grasp_selector.GetInputPort("body_poses"))
-
-    planner = builder.AddSystem(Planner(plant))
-    builder.Connect(station.GetOutputPort("body_poses"),
-                    planner.GetInputPort("body_poses"))
+    #                 planner.GetInputPort("body_poses"))
     # builder.Connect(x_bin_grasp_selector.get_output_port(),
     #                 planner.GetInputPort("x_bin_grasp"))
-    builder.Connect(y_bin_grasp_selector.get_output_port(),
-                    planner.GetInputPort("y_bin_grasp"))
+    # builder.Connect(station.GetOutputPort("wsg_state_measured"),
+    #                 planner.GetInputPort("wsg_state"))
+    # builder.Connect(station.GetOutputPort("iiwa_position_measured"),
+    #                 planner.GetInputPort("iiwa_position"))
+    # planner = builder.AddSystem(StaticController(plant))
+    # builder.Connect(planner.GetOutputPort("wsg_position"),
+    #                 station.GetInputPort("wsg_position"))
+
+    planner = builder.AddSystem(StackingPlanner(plant))
+    builder.Connect(station.GetOutputPort("body_poses"),
+                    planner.GetInputPort("body_poses"))
+    builder.Connect(grasp_selector.get_output_port(),
+                    planner.GetInputPort("grasp"))
     builder.Connect(station.GetOutputPort("wsg_state_measured"),
                     planner.GetInputPort("wsg_state"))
     builder.Connect(station.GetOutputPort("iiwa_position_measured"),

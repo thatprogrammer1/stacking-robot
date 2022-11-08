@@ -6,21 +6,14 @@ from manipulation.scenarios import (
     AddIiwaDifferentialIK, MakeManipulationStation)
 from planning.planner import Planner
 from grasp.grasp_selector import GraspSelector
+from pydrake.all import LeafSystem
 
 
-def GetStation(model_directives):
+def GetStation():
     """
-    Alias for MakeManipulationStation, ensuring we load our own models
+    Create a manipulation station with our own model package loaded.
+    Modify model directives to change what models we include.
     """
-    return MakeManipulationStation(model_directives, time_step=0.001, package_xmls=[os.path.join(os.path.dirname(os.path.realpath(__file__)), "models/package.xml")])
-
-
-def BuildStaticDiagram(meshcat):
-    """
-    Builds a diagram with no planning (there's probably a better way to test things, but idk)
-    """
-    builder = DiagramBuilder()
-
     model_directives = """
 directives:
 - add_directives:
@@ -33,20 +26,34 @@ directives:
     name: brick{i}
     file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
 """
-    station = builder.AddSystem(GetStation(model_directives))
+    return MakeManipulationStation(model_directives, time_step=0.001, package_xmls=[os.path.join(os.path.dirname(os.path.realpath(__file__)), "models/package.xml")])
+
+
+class StaticController(LeafSystem):
+    """
+    For some reason WSG input port is required, so this system sends a 0 
+    to the wsg. For testing other systems.
+    """
+
+    def __init__(self, plant):
+        LeafSystem.__init__(self)
+        self._gripper_body_index = plant.GetBodyByName("body").index()
+        self.DeclareVectorOutputPort(
+            "wsg_position", 1, self.CalcWsgPosition)
+
+    def CalcWsgPosition(self, context, output):
+        output.SetFromVector([np.array([0.0])])
+
+
+def BuildStaticDiagram(meshcat):
+    """
+    Builds a diagram with no planning (there's probably a better way to test things, but idk)
+    """
+    builder = DiagramBuilder()
+
+    station = builder.AddSystem(GetStation())
     plant = station.GetSubsystemByName("plant")
-    from pydrake.all import LeafSystem
-
-    class DumbPlanner(LeafSystem):
-        def __init__(self, plant):
-            LeafSystem.__init__(self)
-            self._gripper_body_index = plant.GetBodyByName("body").index()
-            self.DeclareVectorOutputPort(
-                "wsg_position", 1, self.CalcWsgPosition)
-
-        def CalcWsgPosition(self, context, output):
-            output.SetFromVector([np.array([0.0])])
-    planner = builder.AddSystem(DumbPlanner(plant))
+    planner = builder.AddSystem(StaticController(plant))
     builder.Connect(planner.GetOutputPort("wsg_position"),
                     station.GetInputPort("wsg_position"))
 
@@ -56,26 +63,13 @@ directives:
 
 
 def BuildStackingDiagram(meshcat):
-    # TODO: fix the whole method lol
     return BuildStaticDiagram(meshcat)
     builder = DiagramBuilder()
 
-    model_directives = """
-directives:
-- add_directives:
-    file: package://stacking/clutter_w_cameras.dmd.yaml
-"""
-
-    for i in range(3):
-        model_directives += f"""
-- add_model:
-    name: brick{i}
-    file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
-"""
-    station = builder.AddSystem(GetStation(model_directives))
+    station = builder.AddSystem(GetStation())
     plant = station.GetSubsystemByName("plant")
 
-    y_bin_grasp_selector = builder.AddSystem(
+    x_bin_grasp_selector = builder.AddSystem(
         GraspSelector(plant,
                       plant.GetModelInstanceByName("bin0"),
                       camera_body_indices=[
@@ -87,13 +81,13 @@ directives:
                               plant.GetModelInstanceByName("camera2"))[0]
                       ]))
     builder.Connect(station.GetOutputPort("camera0_point_cloud"),
-                    y_bin_grasp_selector.get_input_port(0))
+                    x_bin_grasp_selector.get_input_port(0))
     builder.Connect(station.GetOutputPort("camera1_point_cloud"),
-                    y_bin_grasp_selector.get_input_port(1))
+                    x_bin_grasp_selector.get_input_port(1))
     builder.Connect(station.GetOutputPort("camera2_point_cloud"),
-                    y_bin_grasp_selector.get_input_port(2))
+                    x_bin_grasp_selector.get_input_port(2))
     builder.Connect(station.GetOutputPort("body_poses"),
-                    y_bin_grasp_selector.GetInputPort("body_poses"))
+                    x_bin_grasp_selector.GetInputPort("body_poses"))
 
     # x_bin_grasp_selector = builder.AddSystem(
     #     GraspSelector(plant,

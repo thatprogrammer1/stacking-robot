@@ -2,9 +2,10 @@ import os
 import numpy as np
 from planning.stacking_planner import StackingPlanner
 from pydrake.all import (DiagramBuilder,
-                         MeshcatVisualizer, PortSwitch)
+                         MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph)
 from manipulation.scenarios import (
-    AddIiwaDifferentialIK, MakeManipulationStation)
+    AddIiwaDifferentialIK)
+from scenarios import MakeManipulationStation
 from planning.planner import Planner
 from grasp.grasp_selector import GraspSelector
 from pydrake.all import LeafSystem
@@ -56,10 +57,16 @@ def BuildStaticDiagram(meshcat):
     plant = station.GetSubsystemByName("plant")
     planner = builder.AddSystem(StaticController(plant))
     builder.Connect(planner.GetOutputPort("wsg_position"),
-                    station.GetInputPort("wsg_position"))
-
+                    station.GetInputPort("wsg_position"))    
+    
+    meshcat_param = MeshcatVisualizerParams()
+    """ kProximity for collision geometry and kIllustration for visual geometry """
+    meshcat_param.role = Role.kIllustration
+    meshcat_param.role = Role.kProximity
+    
     MeshcatVisualizer.AddToBuilder(
-        builder, station.GetOutputPort("query_object"), meshcat)
+        builder, station.GetOutputPort("query_object"), meshcat, meshcat_param)
+    
     return builder.Build(), plant
 
 

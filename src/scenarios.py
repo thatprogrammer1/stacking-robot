@@ -5,7 +5,6 @@ experiments with less code.
 import os
 import sys
 import warnings
-import random
 import numpy as np
 from pydrake.all import (
     AbstractValue, Adder, AddMultibodyPlantSceneGraph, BallRpyJoint, BaseField,
@@ -473,21 +472,10 @@ def AddIiwaDifferentialIK(builder, plant, frame=None):
     return differential_ik
 
 
-def AddBox(plant, shape, name, mass=1, mu=10, color=[.5, .5, .9, 1.0], pose=RigidTransform()):
-    instance = plant.AddModelInstance(name)
-    inertia = UnitInertia.SolidBox(shape.width(), shape.depth(),
-                                       shape.height())
-    body = plant.AddRigidBody(
-        name, instance,
-        SpatialInertia(mass=mass,
-                       p_PScm_E=np.array([0., 0., 0.]),
-                       G_SP_E=inertia))
-    plant.RegisterCollisionGeometry(body, pose, shape, name,
-                                    CoulombFriction(mu, mu))
-    plant.RegisterVisualGeometry(body, pose, shape, name, color)
 
 
-def MakeManipulationStation(model_directives=None,
+
+def MakeManipulationStation(callback, model_directives=None,
                             filename=None,
                             time_step=0.002,
                             iiwa_prefix="iiwa",
@@ -534,17 +522,8 @@ def MakeManipulationStation(model_directives=None,
     # Add (only) the iiwa, WSG, and cameras to the scene.
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder,
                                                      time_step=time_step)
-    xSize, ySize = 0.5, 0.5
-    xStart, yStart = 0.26, -0.26
-    xEnd, yEnd = xStart+xSize, yStart+ySize
-    
-    box = Box(0.06, 0.06, 0.1)
-    for i in range(1):
-        x, y = random.uniform(xStart, xEnd), random.uniform(yStart, yEnd)
-        print(x, y)
-        X_WBox = RigidTransform(RotationMatrix(), [x, y, 0.1])
-        AddBox(plant, box, f"box{i}", color=[0.6, 0.3, 0.2, 1.0], pose = X_WBox)
 
+    callback(plant)
     
     parser = Parser(plant)
     for p in package_xmls:

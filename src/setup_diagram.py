@@ -2,14 +2,28 @@ import os
 import numpy as np
 from planning.stacking_planner import StackingPlanner
 from pydrake.all import (DiagramBuilder,
-                         MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph)
+                         MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
 from manipulation.scenarios import (
     AddIiwaDifferentialIK)
 from scenarios import MakeManipulationStation
 from planning.planner import Planner
 from grasp.grasp_selector import GraspSelector
 from pydrake.all import LeafSystem
+import random
 
+# Simulation tuning pset code
+def AddBox(plant, shape, name, mass=1, mu=10, color=[.5, .5, .9, 1.0], pose=RigidTransform()):
+    instance = plant.AddModelInstance(name)
+    inertia = UnitInertia.SolidBox(shape.width(), shape.depth(),
+                                       shape.height())
+    body = plant.AddRigidBody(
+        name, instance,
+        SpatialInertia(mass=mass,
+                       p_PScm_E=np.array([0., 0., 0.]),
+                       G_SP_E=inertia))
+    plant.RegisterCollisionGeometry(body, pose, shape, name,
+                                    CoulombFriction(mu, mu))
+    plant.RegisterVisualGeometry(body, pose, shape, name, color)
 
 def GetStation():
     """
@@ -28,7 +42,21 @@ directives:
     name: brick{i}
     file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
 """
-    return MakeManipulationStation(model_directives, time_step=0.001, package_xmls=[os.path.join(os.path.dirname(os.path.realpath(__file__)), "models/package.xml")])
+    
+    def callback(plant):
+        xSize, ySize = 0.3, 0.3
+        xStart, yStart = 0.2, -0.2
+        xEnd, yEnd = xStart+xSize, yStart+ySize
+    
+        box = Box(0.06, 0.06, 0.1)
+        for i in range(1):
+            x, y = random.uniform(xStart, xEnd), random.uniform(yStart, yEnd)
+            print("Placing box at", x, y)
+            X_WBox = RigidTransform(RotationMatrix(), [x, y, 0.1])
+            AddBox(plant, box, f"box{i}", color=[0.6, 0.3, 0.2, 1.0], pose = X_WBox)
+            
+            
+    return MakeManipulationStation(callback, model_directives, time_step=0.001, package_xmls=[os.path.join(os.path.dirname(os.path.realpath(__file__)), "models/package.xml")])
 
 
 class StaticController(LeafSystem):

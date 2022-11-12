@@ -6,16 +6,17 @@ from pydrake.all import (DiagramBuilder,
 from manipulation.scenarios import (
     AddIiwaDifferentialIK)
 from scenarios import MakeManipulationStation
-from planning.planner import Planner
 from grasp.grasp_selector import GraspSelector
 from pydrake.all import LeafSystem
 import random
 
 # Simulation tuning pset code
+
+
 def AddBox(plant, shape, name, mass=1, mu=10, color=[.5, .5, .9, 1.0], pose=RigidTransform()):
     instance = plant.AddModelInstance(name)
     inertia = UnitInertia.SolidBox(shape.width(), shape.depth(),
-                                       shape.height())
+                                   shape.height())
     body = plant.AddRigidBody(
         name, instance,
         SpatialInertia(mass=mass,
@@ -24,6 +25,7 @@ def AddBox(plant, shape, name, mass=1, mu=10, color=[.5, .5, .9, 1.0], pose=Rigi
     plant.RegisterCollisionGeometry(body, pose, shape, name,
                                     CoulombFriction(mu, mu))
     plant.RegisterVisualGeometry(body, pose, shape, name, color)
+
 
 def GetStation():
     """
@@ -42,20 +44,20 @@ directives:
     name: brick{i}
     file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
 """
-    
+
     def callback(plant):
         xSize, ySize = 0.3, 0.3
         xStart, yStart = 0.2, -0.2
         xEnd, yEnd = xStart+xSize, yStart+ySize
-    
+
         box = Box(0.06, 0.06, 0.1)
         for i in range(1):
             x, y = random.uniform(xStart, xEnd), random.uniform(yStart, yEnd)
             print("Placing box at", x, y)
             X_WBox = RigidTransform(RotationMatrix(), [x, y, 0.1])
-            AddBox(plant, box, f"box{i}", color=[0.6, 0.3, 0.2, 1.0], pose = X_WBox)
-            
-            
+            AddBox(plant, box, f"box{i}", color=[
+                   0.6, 0.3, 0.2, 1.0])
+
     return MakeManipulationStation(callback, model_directives, time_step=0.001, package_xmls=[os.path.join(os.path.dirname(os.path.realpath(__file__)), "models/package.xml")])
 
 
@@ -85,16 +87,16 @@ def BuildStaticDiagram(meshcat):
     plant = station.GetSubsystemByName("plant")
     planner = builder.AddSystem(StaticController(plant))
     builder.Connect(planner.GetOutputPort("wsg_position"),
-                    station.GetInputPort("wsg_position"))    
-    
+                    station.GetInputPort("wsg_position"))
+
     meshcat_param = MeshcatVisualizerParams()
     """ kProximity for collision geometry and kIllustration for visual geometry """
     meshcat_param.role = Role.kIllustration
     meshcat_param.role = Role.kProximity
-    
+
     MeshcatVisualizer.AddToBuilder(
         builder, station.GetOutputPort("query_object"), meshcat, meshcat_param)
-    
+
     return builder.Build(), plant
 
 
@@ -137,7 +139,7 @@ def BuildStackingDiagram(meshcat):
     # builder.Connect(planner.GetOutputPort("wsg_position"),
     #                 station.GetInputPort("wsg_position"))
 
-    planner = builder.AddSystem(StackingPlanner(plant))
+    planner = builder.AddSystem(StackingPlanner(plant, meshcat))
     builder.Connect(station.GetOutputPort("body_poses"),
                     planner.GetInputPort("body_poses"))
     builder.Connect(grasp_selector.get_output_port(),

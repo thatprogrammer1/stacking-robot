@@ -20,7 +20,7 @@ class PlannerState(Enum):
 
 
 class StackingPlanner(LeafSystem):
-    def __init__(self, plant):
+    def __init__(self, plant, meshcat):
         LeafSystem.__init__(self)
         self._gripper_body_index = plant.GetBodyByName("body").index()
         self.DeclareAbstractInputPort(
@@ -64,6 +64,9 @@ class StackingPlanner(LeafSystem):
         self.DeclareInitializationDiscreteUpdateEvent(self.Initialize)
 
         self.DeclarePeriodicUnrestrictedUpdateEvent(0.1, 0.0, self.Update)
+
+        # for debugging
+        self.meshcat = meshcat
 
     def Update(self, context, state):
         mode = context.get_abstract_state(int(self._mode_index)).get_value()
@@ -193,10 +196,10 @@ class StackingPlanner(LeafSystem):
             self._times_index)).set_value(times)
 
         if False:  # Useful for debugging
-            AddMeshcatTriad(meshcat, "X_Oinitial", X_PT=X_O["initial"])
-            AddMeshcatTriad(meshcat, "X_Gprepick", X_PT=X_G["prepick"])
-            AddMeshcatTriad(meshcat, "X_Gpick", X_PT=X_G["pick"])
-            AddMeshcatTriad(meshcat, "X_Gplace", X_PT=X_G["place"])
+            AddMeshcatTriad(self.meshcat, "X_Oinitial", X_PT=X_G["initial"])
+            AddMeshcatTriad(self.meshcat, "X_Gprepick", X_PT=X_G["prepick"])
+            AddMeshcatTriad(self.meshcat, "X_Gpick", X_PT=X_G["pick"])
+            AddMeshcatTriad(self.meshcat, "X_Gplace", X_PT=X_G["place"])
 
         traj_X_G = MakeGripperPoseTrajectory(X_G, times)
         traj_wsg_command = MakeGripperCommandTrajectory(times)

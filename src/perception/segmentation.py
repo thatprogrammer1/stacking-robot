@@ -10,7 +10,7 @@ CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
 
 
 class Segmentation(LeafSystem):
-    def __init__(self, plant, bin_instance, camera_body_indices, model_labels):
+    def __init__(self, plant, bin_instance, camera_body_indices):
         LeafSystem.__init__(self)
         model_point_cloud = AbstractValue.Make(PointCloud(0))
         label_images = AbstractValue.Make(ImageLabel16I(640, 480))
@@ -47,7 +47,6 @@ class Segmentation(LeafSystem):
         self._crop_upper = np.maximum(a, b)
 
         self._camera_body_indices = camera_body_indices
-        self._model_labels = model_labels
 
     def GetPointCloud(self, context, output):
         body_poses = self.get_input_port(

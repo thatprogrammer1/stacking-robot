@@ -23,6 +23,7 @@ from pydrake.manipulation.planner import (
     DifferentialInverseKinematicsParameters)
 
 from manipulation.utils import AddPackagePaths, FindResource
+from perception.label_image_to_point_cloud import LabelImageToPointCloud
 
 ycb = [
     "003_cracker_box.sdf", "004_sugar_box.sdf", "005_tomato_soup_can.sdf",
@@ -256,7 +257,8 @@ def AddRgbdSensors(builder,
                    also_add_point_clouds=True,
                    model_instance_prefix="camera",
                    depth_camera=None,
-                   renderer=None):
+                   renderer=None,
+                   model_labels=None):
     """
     Adds a RgbdSensor to the first body in the plant for every model instance
     with a name starting with model_instance_prefix.  If depth_camera is None,
@@ -308,15 +310,6 @@ def AddRgbdSensors(builder,
                                  f"{model_name}_label_image")
 
             if also_add_point_clouds:
-                # Add a system to convert the camera output into a point cloud
-                to_point_cloud = builder.AddSystem(
-                    DepthImageToPointCloud(camera_info=rgbd.depth_camera_info(),
-                                           fields=BaseField.kXYZs
-                                           | BaseField.kRGBs))
-                builder.Connect(rgbd.depth_image_32F_output_port(),
-                                to_point_cloud.depth_image_input_port())
-                builder.Connect(rgbd.color_image_output_port(),
-                                to_point_cloud.color_image_input_port())
 
                 class ExtractBodyPose(LeafSystem):
 
@@ -340,11 +333,37 @@ def AddRgbdSensors(builder,
                 camera_pose = builder.AddSystem(ExtractBodyPose(body_index))
                 builder.Connect(plant.get_body_poses_output_port(),
                                 camera_pose.get_input_port())
+                # # Add a system to convert the camera output into a point cloud
+                # to_point_cloud = builder.AddSystem(
+                #     DepthImageToPointCloud(camera_info=rgbd.depth_camera_info(),
+                #                            fields=BaseField.kXYZs
+                #                            | BaseField.kRGBs))
+                # builder.Connect(rgbd.depth_image_32F_output_port(),
+                #                 to_point_cloud.depth_image_input_port())
+                # builder.Connect(rgbd.color_image_output_port(),
+                #                 to_point_cloud.color_image_input_port())
+                # builder.Connect(camera_pose.get_output_port(),
+                #                 to_point_cloud.GetInputPort("camera_pose"))
+
+                # # Export the point cloud output.
+                # builder.ExportOutput(to_point_cloud.point_cloud_output_port(),
+                #                      f"{model_name}_point_cloud")
+
+                # Replace the normal DepthImageToPointCloud to segment based on labels
+                to_point_cloud = builder.AddSystem(
+                    LabelImageToPointCloud(camera_info=rgbd.depth_camera_info(), model_labels=model_labels))
+                builder.Connect(rgbd.depth_image_32F_output_port(),
+                                to_point_cloud.GetInputPort("depth_image"))
+                builder.Connect(rgbd.label_image_output_port(),
+                                to_point_cloud.GetInputPort("label_image"))
+                builder.Connect(rgbd.color_image_output_port(),
+                                to_point_cloud.GetInputPort("color_image"))
+
                 builder.Connect(camera_pose.get_output_port(),
                                 to_point_cloud.GetInputPort("camera_pose"))
 
                 # Export the point cloud output.
-                builder.ExportOutput(to_point_cloud.point_cloud_output_port(),
+                builder.ExportOutput(to_point_cloud.GetOutputPort("point_cloud"),
                                      f"{model_name}_point_cloud")
 
 
@@ -665,7 +684,8 @@ def MakeManipulationStation(callback, model_directives=None,
     AddRgbdSensors(builder,
                    plant,
                    scene_graph,
-                   model_instance_prefix=camera_prefix)
+                   model_instance_prefix=camera_prefix,
+                   model_labels=model_labels)
 
     # Export "cheat" ports.
     builder.ExportOutput(scene_graph.get_query_output_port(), "query_object")
@@ -677,4 +697,4 @@ def MakeManipulationStation(callback, model_directives=None,
 
     diagram = builder.Build()
     diagram.set_name("ManipulationStation")
-    return diagram, model_labels
+    return diagram

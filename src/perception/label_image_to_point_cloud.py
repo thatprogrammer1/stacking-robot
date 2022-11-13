@@ -15,8 +15,12 @@ class LabelImageToPointCloud(LeafSystem):
     Input ports:
     - label_image
     - depth_image
+    - color_iamge
 
     Output ports:
+    - PointCloud, filtering out iiwa labels
+    - Segmentation could be done at this point, such as returning point clouds for each 
+        object
     """
 
     def __init__(self, camera_info, model_labels):
@@ -47,8 +51,8 @@ class LabelImageToPointCloud(LeafSystem):
 
     def GetPointCloud(self, context, output):
         depth_image = self.get_input_port(self._depth_port).Eval(context)
-        label_image = self.get_input_port(
-            self._label_port).Eval(context)  # 480 x 640 x 1
+        # label_image is 480 x 640 x 1
+        label_image = self.get_input_port(self._label_port).Eval(context)
         color_image = self.get_input_port(self._color_port).Eval(context)
         camera_pose = self.get_input_port(self._camera_pose_port).Eval(context)
         camera_info = self._camera_info

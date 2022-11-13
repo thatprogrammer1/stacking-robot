@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from grasp.segmentation import Segmentation
 from planning.stacking_planner import StackingPlanner
 from pydrake.all import (DiagramBuilder,
                          MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, PolygonSurfaceMesh, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
@@ -125,44 +126,30 @@ def BuildStackingDiagram(meshcat):
     station = builder.AddSystem(GetStation())
     plant = station.GetSubsystemByName("plant")
 
-    grasp_selector = builder.AddSystem(
-        GraspSelector(plant,
-                      plant.GetModelInstanceByName("bin0"),
-                      camera_body_indices=[
-                          plant.GetBodyIndices(
-                              plant.GetModelInstanceByName("camera0"))[0],
-                          plant.GetBodyIndices(
-                              plant.GetModelInstanceByName("camera1"))[0],
-                          plant.GetBodyIndices(
-                              plant.GetModelInstanceByName("camera2"))[0]
-                      ]))
-    builder.Connect(station.GetOutputPort("camera0_point_cloud"),
-                    grasp_selector.get_input_port(0))
-    builder.Connect(station.GetOutputPort("camera1_point_cloud"),
-                    grasp_selector.get_input_port(1))
-    builder.Connect(station.GetOutputPort("camera2_point_cloud"),
-                    grasp_selector.get_input_port(2))
-    builder.Connect(station.GetOutputPort("camera0_label_image"),
-                    grasp_selector.get_input_port(3))
-    builder.Connect(station.GetOutputPort("camera1_label_image"),
-                    grasp_selector.get_input_port(4))
-    builder.Connect(station.GetOutputPort("camera2_label_image"),
-                    grasp_selector.get_input_port(5))
+    segmentation = builder.AddSystem(
+        Segmentation(plant,
+                     plant.GetModelInstanceByName("bin0"),
+                     camera_body_indices=[
+                         plant.GetBodyIndices(
+                             plant.GetModelInstanceByName("camera0"))[0],
+                         plant.GetBodyIndices(
+                             plant.GetModelInstanceByName("camera1"))[0],
+                         plant.GetBodyIndices(
+                             plant.GetModelInstanceByName("camera2"))[0]
+                     ]))
+    for i in range(3):
+        point_cloud_port = f"camera{i}_point_cloud"
+        label_image_port = f"camera{i}_label_image"
+        builder.Connect(station.GetOutputPort(point_cloud_port),
+                        segmentation.GetInputPort(point_cloud_port))
+        builder.Connect(station.GetOutputPort(label_image_port),
+                        segmentation.GetInputPort(label_image_port))
     builder.Connect(station.GetOutputPort("body_poses"),
-                    grasp_selector.GetInputPort("body_poses"))
+                    segmentation.GetInputPort("body_poses"))
 
-    # planner = builder.AddSystem(Planner(plant))
-    # builder.Connect(station.GetOutputPort("body_poses"),
-    #                 planner.GetInputPort("body_poses"))
-    # builder.Connect(x_bin_grasp_selector.get_output_port(),
-    #                 planner.GetInputPort("x_bin_grasp"))
-    # builder.Connect(station.GetOutputPort("wsg_state_measured"),
-    #                 planner.GetInputPort("wsg_state"))
-    # builder.Connect(station.GetOutputPort("iiwa_position_measured"),
-    #                 planner.GetInputPort("iiwa_position"))
-    # planner = builder.AddSystem(StaticController(plant))
-    # builder.Connect(planner.GetOutputPort("wsg_position"),
-    #                 station.GetInputPort("wsg_position"))
+    grasp_selector = builder.AddSystem(GraspSelector())
+    builder.Connect(segmentation.GetOutputPort("point_cloud"),
+                    grasp_selector.GetInputPort("point_cloud"))
 
     # TODO (khm): add stack detector, wire planner to use its output to figure out where to place next
     planner = builder.AddSystem(StackingPlanner(plant, meshcat, [.6, .2], .1))

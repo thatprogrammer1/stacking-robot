@@ -1,5 +1,6 @@
 
-
+from typing import List
+from collections import namedtuple
 import numpy as np
 from pydrake.all import (AbstractValue, AddMultibodyPlantSceneGraph, Concatenate, DiagramBuilder, LeafSystem, Parser,
                          PointCloud,
@@ -22,62 +23,30 @@ def make_internal_model():
     plant.Finalize()
     return builder.Build()
 
-# Takes 3 point clouds (in world coordinates) as input, and outputs and estimated pose for the mustard bottle.
+
+CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
 
 
 class GraspSelector(LeafSystem):
-    def __init__(self, plant, bin_instance, camera_body_indices):
+    def __init__(self):
         LeafSystem.__init__(self)
         model_point_cloud = AbstractValue.Make(PointCloud(0))
-        self.DeclareAbstractInputPort("cloud0_W", model_point_cloud)
-        self.DeclareAbstractInputPort("cloud1_W", model_point_cloud)
-        self.DeclareAbstractInputPort("cloud2_W", model_point_cloud)
-        label_images = AbstractValue.Make(ImageLabel16I(640, 480))
-        self.DeclareAbstractInputPort("label0_W", label_images)
-        self.DeclareAbstractInputPort("label1_W", label_images)
-        self.DeclareAbstractInputPort("label2_W", label_images)
 
-        self.DeclareAbstractInputPort(
-            "body_poses", AbstractValue.Make([RigidTransform()]))
+        self._point_cloud_index = self.DeclareAbstractInputPort(
+            "point_cloud", model_point_cloud).get_index()
 
         port = self.DeclareAbstractOutputPort(
             "grasp_selection", lambda: AbstractValue.Make(
                 (np.inf, RigidTransform())), self.SelectGrasp)
         port.disable_caching_by_default()
 
-        # Compute crop box.
-        context = plant.CreateDefaultContext()
-        bin_body = plant.GetBodyByName("bin_base", bin_instance)
-        X_B = plant.EvalBodyPoseInWorld(context, bin_body)
-        margin = 0.001  # only because simulation is perfect!
-        a = X_B.multiply([-.22+0.025+margin, -.29+0.025+margin, 0.015+margin])
-        b = X_B.multiply([.22-0.1-margin, .29-0.025-margin, 2.0])
-        self._crop_lower = np.minimum(a, b)
-        self._crop_upper = np.maximum(a, b)
-
         self._internal_model = make_internal_model()
         self._internal_model_context = self._internal_model.CreateDefaultContext()
         self._rng = np.random.default_rng()
-        self._camera_body_indices = camera_body_indices
 
     def SelectGrasp(self, context, output):
-        body_poses = self.get_input_port(
-            self.GetInputPort("body_poses").get_index()).Eval(context)
-        pcd = []
-        for i in range(3):
-            cloud = self.get_input_port(i).Eval(context)
-            pcd.append(cloud.Crop(self._crop_lower, self._crop_upper))
-            pcd[i].EstimateNormals(radius=0.1, num_closest=30)
-
-            # Flip normals toward camera
-            X_WC = body_poses[self._camera_body_indices[i]]
-            pcd[i].FlipNormalsTowardPoint(X_WC.translation())
-        # for i in range(3, 6):
-        #     labels = self.get_input_port(i).Eval(context)
-        #     print(np.unique(labels.data))
-        merged_pcd = Concatenate(pcd)
-        down_sampled_pcd = merged_pcd.VoxelizedDownSample(voxel_size=0.005)
-
+        down_sampled_pcd = self.get_input_port(
+            self._point_cloud_index).Eval(context)
         costs = []
         X_Gs = []
         # TODO(russt): Take the randomness from an input port, and re-enable

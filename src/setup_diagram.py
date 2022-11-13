@@ -1,13 +1,13 @@
 import os
 import numpy as np
-from grasp.segmentation import Segmentation
+from perception.segmentation import Segmentation
 from planning.stacking_planner import StackingPlanner
 from pydrake.all import (DiagramBuilder,
                          MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, PolygonSurfaceMesh, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
 from manipulation.scenarios import (
     AddIiwaDifferentialIK)
 from scenarios import MakeManipulationStation
-from grasp.grasp_selector import GraspSelector
+from perception.grasp_selector import GraspSelector
 from pydrake.all import LeafSystem
 import random
 

@@ -122,8 +122,8 @@ def BuildStaticDiagram(meshcat):
 
 def BuildStackingDiagram(meshcat):
     builder = DiagramBuilder()
-
-    station = builder.AddSystem(GetStation())
+    manip_station, model_labels = GetStation()
+    station = builder.AddSystem(manip_station)
     plant = station.GetSubsystemByName("plant")
 
     segmentation = builder.AddSystem(
@@ -136,7 +136,8 @@ def BuildStackingDiagram(meshcat):
                              plant.GetModelInstanceByName("camera1"))[0],
                          plant.GetBodyIndices(
                              plant.GetModelInstanceByName("camera2"))[0]
-                     ]))
+                     ],
+                     model_labels=model_labels))
     for i in range(3):
         point_cloud_port = f"camera{i}_point_cloud"
         label_image_port = f"camera{i}_label_image"

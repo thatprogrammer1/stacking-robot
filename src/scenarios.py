@@ -17,7 +17,7 @@ from pydrake.all import (
     PassThrough, PrismaticJoint, ProcessModelDirectives, RenderCameraCore,
     RenderEngineVtkParams, RevoluteJoint, Rgba, RgbdSensor, RigidTransform,
     RollPitchYaw, RotationMatrix, SchunkWsgPositionController, SpatialInertia,
-    Sphere, StateInterpolatorWithDiscreteDerivative, UnitInertia)
+    Sphere, StateInterpolatorWithDiscreteDerivative, UnitInertia, Role, RenderLabel)
 from pydrake.manipulation.planner import (
     DifferentialInverseKinematicsIntegrator,
     DifferentialInverseKinematicsParameters)
@@ -180,7 +180,8 @@ def AddShape(plant, shape, name, mass=1, mu=1, color=[.5, .5, .9, 1.0]):
             plant.RegisterCollisionGeometry(body, RigidTransform(), shape, name,
                                             CoulombFriction(mu, mu))
 
-        plant.RegisterVisualGeometry(body, RigidTransform(), shape, name, color)
+        plant.RegisterVisualGeometry(
+            body, RigidTransform(), shape, name, color)
 
     return instance
 
@@ -472,9 +473,6 @@ def AddIiwaDifferentialIK(builder, plant, frame=None):
     return differential_ik
 
 
-
-
-
 def MakeManipulationStation(callback, model_directives=None,
                             filename=None,
                             time_step=0.002,
@@ -492,6 +490,8 @@ def MakeManipulationStation(callback, model_directives=None,
       - For each model instance starting with `wsg_prefix`, we add an
         additional schunk controller system
       - For each body starting with `camera_prefix`, we add a RgbdSensor
+
+    Also returns RenderLabels associated with each model instance
 
     Args:
         builder: a DiagramBuilder
@@ -524,7 +524,7 @@ def MakeManipulationStation(callback, model_directives=None,
                                                      time_step=time_step)
 
     callback(plant)
-    
+
     parser = Parser(plant)
     for p in package_xmls:
         parser.package_map().AddPackageXml(p)
@@ -534,6 +534,23 @@ def MakeManipulationStation(callback, model_directives=None,
         ProcessModelDirectives(directives, parser)
     if filename:
         parser.AddAllModelsFromFile(filename)
+
+    inspector = scene_graph.model_inspector()
+    model_labels = {}
+    for i in range(plant.num_model_instances()):
+        model_instance = ModelInstanceIndex(i)
+        model_instance_name = plant.GetModelInstanceName(model_instance)
+        # plant.GetModel
+        if plant.GetBodyIndices(model_instance) == []:
+            continue
+        frame_id = plant.GetBodyFrameIdOrThrow(
+            plant.GetBodyIndices(model_instance)[0])
+        geometry_ids = inspector.GetGeometries(frame_id, Role.kPerception)
+        model_labels[model_instance_name] = 100+i
+        for geom_id in geometry_ids:
+            inspector.GetPerceptionProperties(geom_id).UpdateProperty(
+                "label", "id", RenderLabel(model_labels[model_instance_name]))
+    print("Labels: ", model_labels)
     plant.Finalize()
 
     for i in range(plant.num_model_instances()):
@@ -660,4 +677,4 @@ def MakeManipulationStation(callback, model_directives=None,
 
     diagram = builder.Build()
     diagram.set_name("ManipulationStation")
-    return diagram
+    return diagram, model_labels

@@ -34,6 +34,7 @@ def clutter_clearing_demo():
         plant.SetFreeBodyPose(plant_context,
                               plant.get_body(body_index),
                               tf)
+        z += .2
 
     simulator.AdvanceTo(0.1)
     meshcat.Flush()  # Wait for the large object meshes to get to meshcat.

@@ -5,7 +5,7 @@ import numpy as np
 from pydrake.all import (AbstractValue, AddMultibodyPlantSceneGraph, Concatenate, DiagramBuilder, LeafSystem, Parser,
                          PointCloud,
                          RigidTransform,
-                         RollPitchYaw, ImageLabel16I)
+                         RollPitchYaw, ImageLabel16I, Fields, BaseField)
 
 from manipulation import FindResource, running_as_notebook
 from manipulation.clutter import GenerateAntipodalGraspCandidate
@@ -30,7 +30,8 @@ CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
 class GraspSelector(LeafSystem):
     def __init__(self):
         LeafSystem.__init__(self)
-        model_point_cloud = AbstractValue.Make(PointCloud(0))
+        model_point_cloud = AbstractValue.Make(PointCloud(0, fields=Fields(
+            BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals)))
 
         self._point_cloud_index = self.DeclareAbstractInputPort(
             "point_cloud", model_point_cloud).get_index()

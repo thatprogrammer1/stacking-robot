@@ -4,13 +4,13 @@ from collections import namedtuple
 import numpy as np
 from pydrake.all import (AbstractValue, Concatenate, LeafSystem, PointCloud,
                          RigidTransform,
-                         ImageLabel16I, Fields)
+                         ImageLabel16I, BaseField, Fields)
 
 CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
 
 
 class Segmentation(LeafSystem):
-    def __init__(self, plant, bin_instance, camera_body_indices):
+    def __init__(self, plant, bin_instance, camera_body_indices, model_labels):
         LeafSystem.__init__(self)
         model_point_cloud = AbstractValue.Make(PointCloud(0))
         label_images = AbstractValue.Make(ImageLabel16I(640, 480))
@@ -33,7 +33,7 @@ class Segmentation(LeafSystem):
         # Fields(14) means the point cloud we are returning has XYZ, RGB, and Normals
         # Required because otherwise the types can't be coerced?
         self.DeclareAbstractOutputPort(
-            "point_cloud", lambda: AbstractValue.Make(PointCloud(new_size=0, fields=Fields(14))), self.GetPointCloud)
+            "point_cloud", lambda: AbstractValue.Make(PointCloud(new_size=0, fields=Fields(BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals))), self.GetPointCloud)
 
         # Compute crop box.
         context = plant.CreateDefaultContext()
@@ -47,6 +47,7 @@ class Segmentation(LeafSystem):
         self._crop_upper = np.maximum(a, b)
 
         self._camera_body_indices = camera_body_indices
+        self._model_labels = model_labels
 
     def GetPointCloud(self, context, output):
         body_poses = self.get_input_port(
@@ -57,7 +58,8 @@ class Segmentation(LeafSystem):
             port = self._camera_ports[i]
             cloud = self.get_input_port(
                 port.cloud_index).Eval(context)
-            # labels = self.get_input_port(port.label_index).Eval(context)
+            labels = self.get_input_port(port.label_index).Eval(context)
+            print(np.unique(labels.data))
             # print(np.shape(labels.data))
             # print(len(list(cloud)))
 

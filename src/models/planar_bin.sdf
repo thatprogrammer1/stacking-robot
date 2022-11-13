@@ -22,10 +22,9 @@
         </inertia>
       </inertial>
       <visual name="bottom">
-        <pose>0.0 0.0 0.0075 0 0 0</pose>
         <geometry>
           <box>
-            <size>0.49 0.63 0.015</size>
+            <size>10 10 0.015</size>
           </box>
         </geometry>
         <!-- <material>
@@ -33,10 +32,9 @@
         </material> -->
       </visual>
       <collision name="bottom">
-        <pose>0.0 0.0 0.0075 0 0 0</pose>
         <geometry>
           <box>
-            <size>0.49 0.63 0.015</size>
+            <size>10 10 0.015</size>
           </box>
         </geometry>
       </collision>

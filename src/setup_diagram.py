@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from perception.segmentation import Segmentation
+from perception.merge_point_clouds import MergePointClouds
 from planning.stacking_planner import StackingPlanner
 from pydrake.all import (DiagramBuilder,
                          MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, PolygonSurfaceMesh, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
@@ -126,29 +126,28 @@ def BuildStackingDiagram(meshcat):
     station = builder.AddSystem(manip_station)
     plant = station.GetSubsystemByName("plant")
 
-    segmentation = builder.AddSystem(
-        Segmentation(plant,
-                     plant.GetModelInstanceByName("bin0"),
-                     camera_body_indices=[
-                         plant.GetBodyIndices(
-                             plant.GetModelInstanceByName("camera0"))[0],
-                         plant.GetBodyIndices(
-                             plant.GetModelInstanceByName("camera1"))[0],
-                         plant.GetBodyIndices(
-                             plant.GetModelInstanceByName("camera2"))[0]
-                     ]))
+    merge_point_clouds = builder.AddSystem(
+        MergePointClouds(plant,
+                         plant.GetModelInstanceByName("bin0"),
+                         camera_body_indices=[
+                             plant.GetBodyIndices(
+                                 plant.GetModelInstanceByName("camera0"))[0],
+                             plant.GetBodyIndices(
+                                 plant.GetModelInstanceByName("camera1"))[0],
+                             plant.GetBodyIndices(
+                                 plant.GetModelInstanceByName("camera2"))[0]
+                         ]))
     for i in range(3):
         point_cloud_port = f"camera{i}_point_cloud"
-        label_image_port = f"camera{i}_label_image"
+        # label_image_port = f"camera{i}_label_image"
         builder.Connect(station.GetOutputPort(point_cloud_port),
-                        segmentation.GetInputPort(point_cloud_port))
-        builder.Connect(station.GetOutputPort(label_image_port),
-                        segmentation.GetInputPort(label_image_port))
+                        merge_point_clouds.GetInputPort(point_cloud_port))
+        # builder.Connect(station.GetOutputPort(label_image_port), merge_point_clouds.GetInputPort(label_image_port))
     builder.Connect(station.GetOutputPort("body_poses"),
-                    segmentation.GetInputPort("body_poses"))
+                    merge_point_clouds.GetInputPort("body_poses"))
 
     grasp_selector = builder.AddSystem(GraspSelector())
-    builder.Connect(segmentation.GetOutputPort("point_cloud"),
+    builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
                     grasp_selector.GetInputPort("point_cloud"))
 
     # TODO (khm): add stack detector, wire planner to use its output to figure out where to place next

@@ -26,7 +26,7 @@ def clutter_clearing_demo():
     context = simulator.get_context()
 
     plant_context = plant.GetMyMutableContextFromRoot(context)
-    z = 0.2
+    z = .2
     for body_index in plant.GetFloatingBaseBodies():
         tf = RigidTransform(
             UniformlyRandomRotationMatrix(generator),
@@ -34,7 +34,7 @@ def clutter_clearing_demo():
         plant.SetFreeBodyPose(plant_context,
                               plant.get_body(body_index),
                               tf)
-        z += 0.1
+        z += .2
 
     simulator.AdvanceTo(0.1)
     meshcat.Flush()  # Wait for the large object meshes to get to meshcat.

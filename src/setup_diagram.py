@@ -3,7 +3,7 @@ import numpy as np
 from grasp.segmentation import Segmentation
 from planning.stacking_planner import StackingPlanner
 from pydrake.all import (DiagramBuilder,
-                         MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
+                         MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, PolygonSurfaceMesh, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
 from manipulation.scenarios import (
     AddIiwaDifferentialIK)
 from scenarios import MakeManipulationStation
@@ -28,6 +28,28 @@ def AddBox(plant, shape, name, mass=1, mu=10, color=[.5, .5, .9, 1.0], pose=Rigi
     plant.RegisterVisualGeometry(body, pose, shape, name, color)
 
 
+def AddPrism(plant, points_2d, height, name, mass=1, mu=10, color=[.5, .5, .9, 1.0], pose=RigidTransform()):
+    # this code is wrong
+    # polygonsurfacemesh is not a shape
+    instance = plant.AddModelInstance(name)
+    inertia = UnitInertia.SolidBox(1., 1., 1.)
+    N = points_2d.shape[0]
+    points_3d = np.concatenate((np.hstack((points_2d, np.zeros((N, 1)))), np.hstack(
+        (points_2d, np.ones((N, 1)) * height))))
+    face_data = []
+    face_data += [N] + list(range(N))
+    face_data += [N] + list(range(N, 2 * N))
+    for v in range(N):
+        next_v = (v + 1) % N
+        face_data += [4] + [v, next_v, v + N, next_v + N]
+    shape = PolygonSurfaceMesh(np.array(face_data), points_3d)
+    body = plant.AddRigidBody(name, instance, SpatialInertia(
+        mass=mass, p_PScm_E=np.array([0., 0., 0.]), G_SP_E=inertia))
+    plant.RegisterCollisionGeometry(
+        body, pose, shape, name, CoulombFriction(mu, mu))
+    plant.RegisterVisualGeometry(body, pose, shape, name, color)
+
+
 def GetStation():
     """
     Create a manipulation station with our own model package loaded.
@@ -47,17 +69,14 @@ directives:
 """
 
     def callback(plant):
-        xSize, ySize = 0.3, 0.3
-        xStart, yStart = 0.2, -0.2
-        xEnd, yEnd = xStart+xSize, yStart+ySize
-
         box = Box(0.06, 0.06, 0.1)
         for i in range(1):
-            x, y = random.uniform(xStart, xEnd), random.uniform(yStart, yEnd)
-            print("Placing box at", x, y)
-            X_WBox = RigidTransform(RotationMatrix(), [x, y, 0.1])
-            AddBox(plant, box, f"box{i}", color=[
-                   0.6, 0.3, 0.2, 1.0])
+            AddBox(plant, box, f"box{i}", color=[0.6, 0.3, 0.2, 1.0])
+        # for i in range(1):
+        #     x, y = random.uniform(xStart, xEnd), random.uniform(yStart, yEnd)
+        #     print("Placing prism at", x, y)
+        #     AddPrism(plant, np.array([[0, 1], [1, 0], [0, 0]]),
+        #              1, f"prism{i}", color=[0.6, 0.3, 0.2, 1.0])
 
     return MakeManipulationStation(callback, model_directives, time_step=0.001, package_xmls=[os.path.join(os.path.dirname(os.path.realpath(__file__)), "models/package.xml")])
 
@@ -132,7 +151,8 @@ def BuildStackingDiagram(meshcat):
     builder.Connect(segmentation.GetOutputPort("point_cloud"),
                     grasp_selector.GetInputPort("point_cloud"))
 
-    planner = builder.AddSystem(StackingPlanner(plant, meshcat))
+    # TODO (khm): add stack detector, wire planner to use its output to figure out where to place next
+    planner = builder.AddSystem(StackingPlanner(plant, meshcat, [.6, .2], .1))
     builder.Connect(station.GetOutputPort("body_poses"),
                     planner.GetInputPort("body_poses"))
     builder.Connect(grasp_selector.get_output_port(),

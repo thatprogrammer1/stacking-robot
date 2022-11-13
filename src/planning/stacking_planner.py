@@ -68,11 +68,14 @@ class StackingPlanner(LeafSystem):
 
         self.DeclarePeriodicUnrestrictedUpdateEvent(0.1, 0.0, self.Update)
 
+        # for debugging
+        self.meshcat = meshcat
+
     def Update(self, context, state):
         mode = state.get_mutable_abstract_state(int(self._mode_index))
         times = state.get_mutable_abstract_state(int(
             self._times_index))
-        traj_X_G = context.get_mutable_abstract_state(
+        traj_X_G = state.get_mutable_abstract_state(
             int(self._traj_X_G_index))
         traj_q = state.get_mutable_abstract_state(int(
             self._traj_q_index))
@@ -137,7 +140,7 @@ class StackingPlanner(LeafSystem):
         else:
             raise RuntimeError("Could not find a valid grasp after 5 attempts")
 
-        mode.set_value(mode)
+        mode.set_value(PlannerState.PICKING)
 
         X_G, planned_times = MakeGripperFrames({
             "initial":
@@ -149,7 +152,7 @@ class StackingPlanner(LeafSystem):
                     [*self._stacking_zone_center, .20])
         }, t0=context.get_time())
         print(
-            f"Planned {times['postplace'] - times['initial']} second trajectory in mode {mode} at time {context.get_time()}."
+            f"Planned {planned_times['postplace'] - planned_times['initial']} second trajectory in picking mode at time {context.get_time()}."
         )
         times.set_value(planned_times)
 
@@ -159,8 +162,8 @@ class StackingPlanner(LeafSystem):
             AddMeshcatTriad(self._meshcat, "X_Gpick", X_PT=X_G["pick"])
             AddMeshcatTriad(self._meshcat, "X_Gplace", X_PT=X_G["place"])
 
-        traj_X_G.set_value(MakeGripperPoseTrajectory(X_G, times))
-        traj_wsg_command.set_value(MakeGripperCommandTrajectory(times))
+        traj_X_G.set_value(MakeGripperPoseTrajectory(X_G, planned_times))
+        traj_wsg_command.set_value(MakeGripperCommandTrajectory(planned_times))
 
     def start_time(self, context):
         return context.get_abstract_state(

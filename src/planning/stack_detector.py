@@ -1,9 +1,20 @@
 import numpy as np
 from pydrake.all import (AbstractValue, LeafSystem, PointCloud, RigidTransform)
+import typing
 
 
 class StackDetector(LeafSystem):
-    def __init__(self, stacking_zone_center, stacking_zone_radius):
+    """
+    Outputs the highest point on the stack cylinder to determine 
+    where to place next block   
+
+    InputPorts:
+    - merged_pcd : PointCloud = merged point cloud from all cameras
+    OutputPorts:
+    - next_stack_position : 3-array = highest point within stack cylinder
+    """
+
+    def __init__(self, stacking_zone_center: np.array, stacking_zone_radius: float):
         LeafSystem.__init__(self)
         self._stacking_zone_center = stacking_zone_center
         self._stacking_zone_radius = stacking_zone_radius
@@ -19,8 +30,7 @@ class StackDetector(LeafSystem):
         # stack points are points in cylinder around center
         stack_points = points[:, np.linalg.norm(
             points[:2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) <= self._stacking_zone_radius]
-        # next stack position = at heigh of highest point and at center of stack cylinder laterally
-        # output.set_value(np.array([0.6, 0.2, 0.2]))
+        # next stack position = at height of highest point and at center of stack cylinder laterally
         if len(stack_points) > 0:
             pos = np.hstack((self._stacking_zone_center,
                             np.max(stack_points[2, :]))) + np.array([0, 0, 0.1])

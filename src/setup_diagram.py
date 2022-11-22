@@ -62,7 +62,7 @@ directives:
     file: package://stacking/clutter_w_cameras.dmd.yaml
 """
 
-    for i in range(2):
+    for i in range(3):
         model_directives += f"""
 - add_model:
     name: brick{i}
@@ -71,7 +71,7 @@ directives:
 
     def callback(plant):
         box = Box(0.06, 0.06, 0.1)
-        for i in range(1):
+        for i in range(0):
             AddBox(plant, box, f"box{i}", color=[0.6, 0.3, 0.2, 1.0])
         # for i in range(1):
         #     x, y = random.uniform(xStart, xEnd), random.uniform(yStart, yEnd)
@@ -143,7 +143,8 @@ def BuildStackingDiagram(meshcat):
                                  plant.GetModelInstanceByName("camera1"))[0],
                              plant.GetBodyIndices(
                                  plant.GetModelInstanceByName("camera2"))[0]
-                         ]))
+                         ],
+                         meshcat=meshcat))
     for i in range(3):
         point_cloud_port = f"camera{i}_point_cloud"
         # label_image_port = f"camera{i}_label_image"
@@ -159,7 +160,7 @@ def BuildStackingDiagram(meshcat):
 
     # TODO (khm): add stack detector, wire planner to use its output to figure out where to place next
     detector = builder.AddSystem(StackDetector(
-        stacking_zone_center=np.array([.6, .2]), stacking_zone_radius=.1))
+        stacking_zone_center=np.array([.6, .2]), stacking_zone_radius=.1, meshcat=meshcat))
     builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
                     detector.GetInputPort("merged_pcd"))
     planner = builder.AddSystem(StackingPlanner(plant, meshcat))

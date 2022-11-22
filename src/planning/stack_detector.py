@@ -1,5 +1,6 @@
 import numpy as np
-from pydrake.all import (AbstractValue, LeafSystem, PointCloud, RigidTransform)
+from pydrake.all import (AbstractValue, LeafSystem,
+                         PointCloud, RigidTransform, Fields, BaseField)
 import typing
 
 
@@ -14,8 +15,9 @@ class StackDetector(LeafSystem):
     - next_stack_position : 3-array = highest point within stack cylinder
     """
 
-    def __init__(self, stacking_zone_center: np.array, stacking_zone_radius: float):
+    def __init__(self, stacking_zone_center: np.array, stacking_zone_radius: float, meshcat):
         LeafSystem.__init__(self)
+        self._meshcat = meshcat
         self._stacking_zone_center = stacking_zone_center
         self._stacking_zone_radius = stacking_zone_radius
         self._merged_pcd_index = self.DeclareAbstractInputPort(
@@ -31,6 +33,14 @@ class StackDetector(LeafSystem):
         stack_points = points[:, np.linalg.norm(
             points[:2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) <= self._stacking_zone_radius]
         # next stack position = at height of highest point and at center of stack cylinder laterally
+
+        if True:
+            cloud = PointCloud(stack_points.shape[1],
+                               Fields(BaseField.kXYZs | BaseField.kRGBs))
+            cloud.mutable_xyzs()[:] = stack_points
+            cloud.mutable_rgbs()[:] = np.array(
+                [[255, 0, 0]]*stack_points.shape[1]).T
+            self._meshcat.SetObject("/stack_points", cloud, point_size=0.005)
 
         if stack_points.shape[1] > 0:
             pos = np.hstack((self._stacking_zone_center,

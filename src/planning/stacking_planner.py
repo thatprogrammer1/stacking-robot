@@ -144,6 +144,7 @@ class StackingPlanner(LeafSystem):
 
         mode.set_value(PlannerState.PICKING)
 
+        height_offset = np.array([0, 0, 0.05])
         X_G, planned_times = MakeGripperFrames({
             "initial":
                 self.get_input_port(self._body_poses_index).Eval(context)
@@ -151,7 +152,7 @@ class StackingPlanner(LeafSystem):
             "pick": pick_pose,
             "place": RigidTransform(
                     RollPitchYaw(-np.pi / 2, 0, np.pi / 2),
-                    self.get_input_port(self._stack_position_index).Eval(context))
+                    self.get_input_port(self._stack_position_index).Eval(context) + height_offset)
         }, t0=context.get_time())
         print(
             f"Planned {planned_times['postplace'] - planned_times['initial']} second trajectory in picking mode at time {context.get_time()}."

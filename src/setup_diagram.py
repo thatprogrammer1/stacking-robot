@@ -78,7 +78,13 @@ directives:
         #     AddPrism(plant, np.array([[0, 1], [1, 0], [0, 0]]),
         #              1, f"prism{i}", color=[0.6, 0.3, 0.2, 1.0])
 
-    return MakeManipulationStation(callback, model_directives, time_step=0.001, package_xmls=[os.path.join(os.path.dirname(os.path.realpath(__file__)), "models/package.xml")])
+    return MakeManipulationStation(callback,
+                                   model_directives=model_directives,
+                                   time_step=0.001,
+                                   package_xmls=[os.path.join(os.path.dirname(
+                                       os.path.realpath(__file__)), "models/package.xml")],
+                                   disable_segmentation=False
+                                   )
 
 
 class StaticController(LeafSystem):

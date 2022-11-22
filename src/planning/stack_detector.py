@@ -31,10 +31,11 @@ class StackDetector(LeafSystem):
         stack_points = points[:, np.linalg.norm(
             points[:2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) <= self._stacking_zone_radius]
         # next stack position = at height of highest point and at center of stack cylinder laterally
-        if len(stack_points) > 0:
+
+        if stack_points.shape[1] > 0:
             pos = np.hstack((self._stacking_zone_center,
-                            np.max(stack_points[2, :]))) + np.array([0, 0, 0.1])
+                            np.max(stack_points[2, :])))
         else:
-            pos = [*self._stacking_zone_center, 0.1]
-        print(pos)
+            pos = [*self._stacking_zone_center, 0]
+        print("Highest point on stack: ", pos)
         output.set_value(pos)

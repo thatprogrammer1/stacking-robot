@@ -258,7 +258,8 @@ def AddRgbdSensors(builder,
                    model_instance_prefix="camera",
                    depth_camera=None,
                    renderer=None,
-                   model_labels=None):
+                   model_labels=None,
+                   disable_segmentation=False):
     """
     Adds a RgbdSensor to the first body in the plant for every model instance
     with a name starting with model_instance_prefix.  If depth_camera is None,
@@ -333,38 +334,39 @@ def AddRgbdSensors(builder,
                 camera_pose = builder.AddSystem(ExtractBodyPose(body_index))
                 builder.Connect(plant.get_body_poses_output_port(),
                                 camera_pose.get_input_port())
-                # # Add a system to convert the camera output into a point cloud
-                # to_point_cloud = builder.AddSystem(
-                #     DepthImageToPointCloud(camera_info=rgbd.depth_camera_info(),
-                #                            fields=BaseField.kXYZs
-                #                            | BaseField.kRGBs))
-                # builder.Connect(rgbd.depth_image_32F_output_port(),
-                #                 to_point_cloud.depth_image_input_port())
-                # builder.Connect(rgbd.color_image_output_port(),
-                #                 to_point_cloud.color_image_input_port())
-                # builder.Connect(camera_pose.get_output_port(),
-                #                 to_point_cloud.GetInputPort("camera_pose"))
+                # Add a system to convert the camera output into a point cloud
+                if disable_segmentation:
+                    to_point_cloud = builder.AddSystem(
+                        DepthImageToPointCloud(camera_info=rgbd.depth_camera_info(),
+                                               fields=BaseField.kXYZs
+                                               | BaseField.kRGBs))
+                    builder.Connect(rgbd.depth_image_32F_output_port(),
+                                    to_point_cloud.depth_image_input_port())
+                    builder.Connect(rgbd.color_image_output_port(),
+                                    to_point_cloud.color_image_input_port())
+                    builder.Connect(camera_pose.get_output_port(),
+                                    to_point_cloud.GetInputPort("camera_pose"))
 
-                # # Export the point cloud output.
-                # builder.ExportOutput(to_point_cloud.point_cloud_output_port(),
-                #                      f"{model_name}_point_cloud")
+                    # Export the point cloud output.
+                    builder.ExportOutput(to_point_cloud.point_cloud_output_port(),
+                                         f"{model_name}_point_cloud")
+                else:
+                    # Replace the normal DepthImageToPointCloud to segment based on labels
+                    to_point_cloud = builder.AddSystem(
+                        LabelImageToPointCloud(camera_info=rgbd.depth_camera_info(), model_labels=model_labels))
+                    builder.Connect(rgbd.depth_image_32F_output_port(),
+                                    to_point_cloud.GetInputPort("depth_image"))
+                    builder.Connect(rgbd.label_image_output_port(),
+                                    to_point_cloud.GetInputPort("label_image"))
+                    builder.Connect(rgbd.color_image_output_port(),
+                                    to_point_cloud.GetInputPort("color_image"))
 
-                # Replace the normal DepthImageToPointCloud to segment based on labels
-                to_point_cloud = builder.AddSystem(
-                    LabelImageToPointCloud(camera_info=rgbd.depth_camera_info(), model_labels=model_labels))
-                builder.Connect(rgbd.depth_image_32F_output_port(),
-                                to_point_cloud.GetInputPort("depth_image"))
-                builder.Connect(rgbd.label_image_output_port(),
-                                to_point_cloud.GetInputPort("label_image"))
-                builder.Connect(rgbd.color_image_output_port(),
-                                to_point_cloud.GetInputPort("color_image"))
+                    builder.Connect(camera_pose.get_output_port(),
+                                    to_point_cloud.GetInputPort("camera_pose"))
 
-                builder.Connect(camera_pose.get_output_port(),
-                                to_point_cloud.GetInputPort("camera_pose"))
-
-                # Export the point cloud output.
-                builder.ExportOutput(to_point_cloud.GetOutputPort("point_cloud"),
-                                     f"{model_name}_point_cloud")
+                    # Export the point cloud output.
+                    builder.ExportOutput(to_point_cloud.GetOutputPort("point_cloud"),
+                                         f"{model_name}_point_cloud")
 
 
 def SetTransparency(scene_graph, alpha, source_id, geometry_ids=None):
@@ -498,7 +500,8 @@ def MakeManipulationStation(callback, model_directives=None,
                             iiwa_prefix="iiwa",
                             wsg_prefix="wsg",
                             camera_prefix="camera",
-                            package_xmls=[]):
+                            package_xmls=[],
+                            disable_segmentation=True):
     """
     Creates a manipulation station system, which is a sub-diagram containing:
       - A MultibodyPlant with populated via the Parser from the
@@ -685,7 +688,8 @@ def MakeManipulationStation(callback, model_directives=None,
                    plant,
                    scene_graph,
                    model_instance_prefix=camera_prefix,
-                   model_labels=model_labels)
+                   model_labels=model_labels,
+                   disable_segmentation=disable_segmentation)
 
     # Export "cheat" ports.
     builder.ExportOutput(scene_graph.get_query_output_port(), "query_object")

@@ -76,7 +76,8 @@ class LabelImageToPointCloud(LeafSystem):
                 if label_image.at(u, v)[0] in forbidden:
                     continue
                 z = depth_image.at(u, v)[0]
-                # we may need to do a check for kTooClose or kTooFar, but i can't find it
+                # we may need to do a check for kTooClose or kTooFar,
+                # but i can't find what the values are in code
                 x = z * (u - cx) * fx_inv
                 y = z * (v - cy) * fy_inv
                 pt = X_PC @ np.array([x, y, z])

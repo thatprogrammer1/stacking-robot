@@ -10,8 +10,9 @@ from pydrake.all import (AbstractValue, Concatenate, LeafSystem, PointCloud,
 
 
 class MergePointClouds(LeafSystem):
-    def __init__(self, plant, bin_instance, camera_body_indices):
+    def __init__(self, plant, bin_instance, camera_body_indices, meshcat):
         LeafSystem.__init__(self)
+        self._meshcat = meshcat
         model_point_cloud = AbstractValue.Make(PointCloud(0))
         label_images = AbstractValue.Make(ImageLabel16I(640, 480))
 
@@ -61,5 +62,7 @@ class MergePointClouds(LeafSystem):
 
         merged_pcd = Concatenate(pcd)
         down_sampled_pcd = merged_pcd.VoxelizedDownSample(voxel_size=0.005)
-
+        if True:
+            self._meshcat.SetObject(
+                "/down_sampled_pcd", down_sampled_pcd, point_size=0.005)
         output.set_value(down_sampled_pcd)

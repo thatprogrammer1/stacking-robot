@@ -13,12 +13,18 @@ class StackDetector(LeafSystem):
             "next_stack_position", 3, self.CalcNextStackPosition)
 
     def CalcNextStackPosition(self, context, output):
-        merged_pcd = context.get_abstract_state(
-            int(self._merged_pcd_index)).get_value()
+        merged_pcd = self.get_input_port(
+            self._merged_pcd_index).Eval(context)
         points = merged_pcd.xyzs()
         # stack points are points in cylinder around center
-        stack_points = points[np.linalg.norm(
-            points[:2, :] - self._stacking_zone_center, axis=0) <= self._stacking_zone_radius]
+        stack_points = points[:, np.linalg.norm(
+            points[:2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) <= self._stacking_zone_radius]
         # next stack position = at heigh of highest point and at center of stack cylinder laterally
-        output.set_value(np.hstack((self._stacking_zone_center,
-                         np.max(stack_points[2, :]))))
+        # output.set_value(np.array([0.6, 0.2, 0.2]))
+        if len(stack_points) > 0:
+            pos = np.hstack((self._stacking_zone_center,
+                            np.max(stack_points[2, :]))) + np.array([0, 0, 0.1])
+        else:
+            pos = [*self._stacking_zone_center, 0.1]
+        print(pos)
+        output.set_value(pos)

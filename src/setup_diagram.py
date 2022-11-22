@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from perception.merge_point_clouds import MergePointClouds
+from planning.stack_detector import StackDetector
 from planning.stacking_planner import StackingPlanner
 from pydrake.all import (DiagramBuilder,
                          MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, PolygonSurfaceMesh, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
@@ -157,7 +158,13 @@ def BuildStackingDiagram(meshcat):
                     grasp_selector.GetInputPort("point_cloud"))
 
     # TODO (khm): add stack detector, wire planner to use its output to figure out where to place next
-    planner = builder.AddSystem(StackingPlanner(plant, meshcat, [.6, .2], .1))
+    detector = builder.AddSystem(StackDetector(
+        stacking_zone_center=np.array([.6, .2]), stacking_zone_radius=.1))
+    builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
+                    detector.GetInputPort("merged_pcd"))
+    planner = builder.AddSystem(StackingPlanner(plant, meshcat))
+    builder.Connect(detector.GetOutputPort("next_stack_position"),
+                    planner.GetInputPort("stack_position"))
     builder.Connect(station.GetOutputPort("body_poses"),
                     planner.GetInputPort("body_poses"))
     builder.Connect(grasp_selector.get_output_port(),

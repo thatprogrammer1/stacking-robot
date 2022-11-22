@@ -8,7 +8,8 @@ from manipulation.pick import (MakeGripperCommandTrajectory, MakeGripperFrames,
 from pydrake.all import (AbstractValue,
                          InputPortIndex,
                          LeafSystem, PiecewisePolynomial, PiecewisePose, RigidTransform,
-                         RollPitchYaw)
+                         RollPitchYaw,
+                         PointCloud)
 
 
 class PlannerState(Enum):
@@ -18,11 +19,12 @@ class PlannerState(Enum):
 
 
 class StackingPlanner(LeafSystem):
-    def __init__(self, plant, meshcat, stacking_zone_center, stacking_zone_radius):
+    def __init__(self, plant, meshcat):
         LeafSystem.__init__(self)
         self._meshcat = meshcat
-        self._stacking_zone_center = stacking_zone_center
-        self._stacking_zone_radius = stacking_zone_radius
+        self._stack_position_index = self.DeclareVectorInputPort(
+            "stack_position", 3).get_index()
+
         self._gripper_body_index = plant.GetBodyByName("body").index()
         num_positions = 7
 
@@ -149,7 +151,7 @@ class StackingPlanner(LeafSystem):
             "pick": pick_pose,
             "place": RigidTransform(
                     RollPitchYaw(-np.pi / 2, 0, np.pi / 2),
-                    [*self._stacking_zone_center, .20])
+                    self.get_input_port(self._stack_position_index).Eval(context))
         }, t0=context.get_time())
         print(
             f"Planned {planned_times['postplace'] - planned_times['initial']} second trajectory in picking mode at time {context.get_time()}."

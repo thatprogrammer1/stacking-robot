@@ -160,7 +160,7 @@ def BuildStackingDiagram(meshcat):
 
     # TODO (khm): add stack detector, wire planner to use its output to figure out where to place next
     detector = builder.AddSystem(StackDetector(
-        stacking_zone_center=np.array([.6, .2]), stacking_zone_radius=.1, meshcat=meshcat))
+        stacking_zone_center=np.array([.6, .2]), stacking_zone_radius=.07, meshcat=meshcat))
     builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
                     detector.GetInputPort("merged_pcd"))
     planner = builder.AddSystem(StackingPlanner(plant, meshcat))

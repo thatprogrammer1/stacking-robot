@@ -563,15 +563,13 @@ def MakeManipulationStation(callback, model_directives=None,
         model_instance = ModelInstanceIndex(i)
         model_instance_name = plant.GetModelInstanceName(model_instance)
         # plant.GetModel
-        if plant.GetBodyIndices(model_instance) == []:
-            continue
-        frame_id = plant.GetBodyFrameIdOrThrow(
-            plant.GetBodyIndices(model_instance)[0])
-        geometry_ids = inspector.GetGeometries(frame_id, Role.kPerception)
         model_labels[model_instance_name] = 100+i
-        for geom_id in geometry_ids:
-            inspector.GetPerceptionProperties(geom_id).UpdateProperty(
-                "label", "id", RenderLabel(model_labels[model_instance_name]))
+        for body_ind in plant.GetBodyIndices(model_instance):
+            frame_id = plant.GetBodyFrameIdOrThrow(body_ind)
+            geometry_ids = inspector.GetGeometries(frame_id, Role.kPerception)
+            for geom_id in geometry_ids:
+                inspector.GetPerceptionProperties(geom_id).UpdateProperty(
+                    "label", "id", RenderLabel(model_labels[model_instance_name]))
     print("Labels: ", model_labels)
     plant.Finalize()
 

@@ -144,7 +144,7 @@ class StackingPlanner(LeafSystem):
 
         mode.set_value(PlannerState.PICKING)
 
-        height_offset = np.array([0, 0, 0.05])
+        height_offset = np.array([0, 0, 0.1])
         X_G, planned_times = MakeGripperFrames({
             "initial":
                 self.get_input_port(self._body_poses_index).Eval(context)

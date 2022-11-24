@@ -28,8 +28,11 @@ CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
 
 
 class GraspSelector(LeafSystem):
-    def __init__(self, random_seed=None):
+    def __init__(self, stacking_zone_center: np.array, stacking_zone_radius: float, meshcat, random_seed=None):
         LeafSystem.__init__(self)
+        self._meshcat = meshcat
+        self._stacking_zone_center = stacking_zone_center
+        self._stacking_zone_radius = stacking_zone_radius
         model_point_cloud = AbstractValue.Make(PointCloud(0, fields=Fields(
             BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals)))
 
@@ -48,6 +51,24 @@ class GraspSelector(LeafSystem):
     def SelectGrasp(self, context, output):
         down_sampled_pcd = self.get_input_port(
             self._point_cloud_index).Eval(context)
+
+        # remove points from stack cylinder
+        # hack to keep normals of points that remain
+        points = np.array(
+            [down_sampled_pcd.xyzs(), down_sampled_pcd.normals()])
+        grasp_points = points[:, :, np.linalg.norm(
+            points[0, :2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) > self._stacking_zone_radius]
+        num_points = grasp_points.shape[2]
+        cloud = PointCloud(num_points,
+                           Fields(BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals))
+        cloud.mutable_xyzs()[:] = grasp_points[0]
+        cloud.mutable_rgbs()[:] = np.array(
+            [[0, 255, 0]]*num_points).T
+        cloud.mutable_normals()[:] = grasp_points[1]
+
+        if True:
+            self._meshcat.SetObject(
+                "/grasp_selection_points", cloud, point_size=0.005)
         costs = []
         X_Gs = []
         # TODO(russt): Take the randomness from an input port, and re-enable
@@ -55,7 +76,7 @@ class GraspSelector(LeafSystem):
         for i in range(100 if running_as_notebook else 2):
             cost, X_G = GenerateAntipodalGraspCandidate(
                 self._internal_model, self._internal_model_context,
-                down_sampled_pcd, self._rng)
+                cloud, self._rng)
             if np.isfinite(cost):
                 costs.append(cost)
                 X_Gs.append(X_G)

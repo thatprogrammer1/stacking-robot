@@ -28,21 +28,23 @@ class StackDetector(LeafSystem):
     def CalcNextStackPosition(self, context, output):
         merged_pcd = self.get_input_port(
             self._merged_pcd_index).Eval(context)
+
         points = merged_pcd.xyzs()
         # stack points are points in cylinder around center
         stack_points = points[:, np.linalg.norm(
             points[:2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) <= self._stacking_zone_radius]
-        # next stack position = at height of highest point and at center of stack cylinder laterally
+        num_points = stack_points.shape[1]
 
         if True:
             cloud = PointCloud(stack_points.shape[1],
                                Fields(BaseField.kXYZs | BaseField.kRGBs))
             cloud.mutable_xyzs()[:] = stack_points
             cloud.mutable_rgbs()[:] = np.array(
-                [[255, 0, 0]]*stack_points.shape[1]).T
+                [[255, 0, 0]]*num_points).T
             self._meshcat.SetObject("/stack_points", cloud, point_size=0.005)
 
-        if stack_points.shape[1] > 0:
+        # next stack position = at height of highest point and at center of stack cylinder laterally
+        if num_points > 0:
             pos = np.hstack((self._stacking_zone_center,
                             np.max(stack_points[2, :])))
         else:

@@ -201,9 +201,9 @@ def BuildStackingDiagram(meshcat, seed):
     builder.Connect(planner.GetOutputPort("control_mode"),
                     switch.get_port_selector_input_port())
 
-    MeshcatVisualizer.AddToBuilder(
+    visualizer = MeshcatVisualizer.AddToBuilder(
         builder, station.GetOutputPort("query_object"), meshcat)
-    return builder.Build(), plant
+    return builder.Build(), plant, visualizer
 
 
 def visualize_diagram(diagram):

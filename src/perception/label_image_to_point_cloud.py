@@ -81,7 +81,7 @@ class LabelImageToPointCloud(LeafSystem):
                 x = z * (u - cx) * fx_inv
                 y = z * (v - cy) * fy_inv
                 pt = X_PC @ np.array([x, y, z])
-                tmp_res.append((pt, color_image.at(u, v)[0]))
+                tmp_res.append((pt, color_image.at(u, v)[0:3]))
         res = PointCloud(len(tmp_res), Fields(
             BaseField.kXYZs | BaseField.kRGBs))
         xyzs = res.mutable_xyzs()

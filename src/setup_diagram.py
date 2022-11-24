@@ -127,7 +127,7 @@ def BuildStaticDiagram(meshcat):
     return builder.Build(), plant
 
 
-def BuildStackingDiagram(meshcat):
+def BuildStackingDiagram(meshcat, seed):
     builder = DiagramBuilder()
     manip_station = GetStation()
     station = builder.AddSystem(manip_station)
@@ -154,7 +154,7 @@ def BuildStackingDiagram(meshcat):
     builder.Connect(station.GetOutputPort("body_poses"),
                     merge_point_clouds.GetInputPort("body_poses"))
 
-    grasp_selector = builder.AddSystem(GraspSelector())
+    grasp_selector = builder.AddSystem(GraspSelector(seed))
     builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
                     grasp_selector.GetInputPort("point_cloud"))
 

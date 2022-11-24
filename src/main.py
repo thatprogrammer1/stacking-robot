@@ -16,11 +16,14 @@ class NoDiffIKWarnings(logging.Filter):
 logging.getLogger("drake").addFilter(NoDiffIKWarnings())
 
 
-def clutter_clearing_demo():
+def clutter_clearing_demo(seed=None):
     meshcat.Delete()
-    rs = np.random.RandomState()  # this is for python
+    if seed == None:
+        seed = np.random.randint(10000000)
+    print("Using random seed: ", seed)
+    rs = np.random.RandomState(seed)  # this is for python
     generator = RandomGenerator(rs.randint(1000))  # this is for c++
-    diagram, plant = BuildStackingDiagram(meshcat)
+    diagram, plant = BuildStackingDiagram(meshcat, seed)
 
     simulator = Simulator(diagram)
     context = simulator.get_context()

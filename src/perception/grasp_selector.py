@@ -28,7 +28,7 @@ CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
 
 
 class GraspSelector(LeafSystem):
-    def __init__(self):
+    def __init__(self, random_seed=None):
         LeafSystem.__init__(self)
         model_point_cloud = AbstractValue.Make(PointCloud(0, fields=Fields(
             BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals)))
@@ -43,7 +43,7 @@ class GraspSelector(LeafSystem):
 
         self._internal_model = make_internal_model()
         self._internal_model_context = self._internal_model.CreateDefaultContext()
-        self._rng = np.random.default_rng()
+        self._rng = np.random.default_rng(random_seed)
 
     def SelectGrasp(self, context, output):
         down_sampled_pcd = self.get_input_port(

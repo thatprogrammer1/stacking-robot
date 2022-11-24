@@ -23,7 +23,7 @@ def clutter_clearing_demo(seed=None):
     print("Using random seed: ", seed)
     rs = np.random.RandomState(seed)  # this is for python
     generator = RandomGenerator(rs.randint(1000))  # this is for c++
-    diagram, plant = BuildStackingDiagram(meshcat, seed)
+    diagram, plant, visualizer = BuildStackingDiagram(meshcat, seed)
 
     simulator = Simulator(diagram)
     context = simulator.get_context()
@@ -41,12 +41,15 @@ def clutter_clearing_demo(seed=None):
 
     simulator.AdvanceTo(0.1)
     meshcat.Flush()  # Wait for the large object meshes to get to meshcat.
+    visualizer.StartRecording()
 
     simulator.set_target_realtime_rate(1.0)
     meshcat.AddButton("Stop Simulation", "Escape")
     print("Press Escape to stop the simulation")
     while meshcat.GetButtonClicks("Stop Simulation") < 1:
         simulator.AdvanceTo(simulator.get_context().get_time() + 2.0)
+    visualizer.StopRecording()
+    visualizer.PublishRecording()
     meshcat.DeleteButton("Stop Simulation")
 
 

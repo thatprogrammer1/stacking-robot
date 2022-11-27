@@ -48,6 +48,8 @@ class StackingPlanner(LeafSystem):
         self._iiwa_position_index = self.DeclareVectorInputPort(
             "iiwa_position", num_positions).get_index()
 
+        self._com_index = self.DeclareVectorInputPort("com", 3).get_index()
+
         self.DeclareAbstractOutputPort(
             "X_WG", lambda: AbstractValue.Make(RigidTransform()),
             self.CalcGripperPose)
@@ -99,6 +101,9 @@ class StackingPlanner(LeafSystem):
                 self.StartPicking(context, mode, times,
                                   traj_X_G, traj_wsg_command)
         else:
+            if times.get_value()["clearance"] < current_time and current_time < times.get_value()["rest_end"] and wsg_state[0] > 0.01:
+                com = self.get_input_port(self._com_index).Eval(context)
+                print(f"COM calculated: {com}")
             # If we are between pick and place and the gripper is closed, then
             # we've missed or dropped the object.  Time to replan.
             if times.get_value()["postpick"] < current_time and current_time < times.get_value()["preplace"] and wsg_state[0] < 0.01:

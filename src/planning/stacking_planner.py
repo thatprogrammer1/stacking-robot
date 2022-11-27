@@ -3,8 +3,8 @@ from enum import Enum
 
 import numpy as np
 from manipulation.meshcat_utils import AddMeshcatTriad
-from manipulation.pick import (MakeGripperCommandTrajectory, MakeGripperFrames,
-                               MakeGripperPoseTrajectory)
+from planning.pick import (MakeGripperCommandTrajectory, MakeGripperFrames,
+                           MakeGripperPoseTrajectory)
 from pydrake.all import (AbstractValue,
                          InputPortIndex,
                          LeafSystem, PiecewisePolynomial, PiecewisePose, RigidTransform,

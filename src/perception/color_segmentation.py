@@ -5,6 +5,16 @@ from pydrake.all import (AbstractValue, LeafSystem, PointCloud,
 
 
 class ColorSegmentation(LeafSystem):
+    """
+    Segment out different prisms.
+
+    Input ports:
+    - point_cloud - merged pcd
+
+    Output ports:
+    - segmented_clouds - a list of point clouds, each PointCloud representing an object
+    """
+
     def __init__(self):
         LeafSystem.__init__(self)
         model_point_cloud = AbstractValue.Make(PointCloud(0, fields=Fields(

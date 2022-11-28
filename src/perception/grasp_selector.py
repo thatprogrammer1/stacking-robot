@@ -24,9 +24,6 @@ def make_internal_model():
     return builder.Build()
 
 
-CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
-
-
 class GraspSelector(LeafSystem):
     def __init__(self, stacking_zone_center: np.array, stacking_zone_radius: float, meshcat, random_seed=None):
         LeafSystem.__init__(self)
@@ -51,6 +48,7 @@ class GraspSelector(LeafSystem):
         self._rng = np.random.default_rng(random_seed)
 
     def SelectGrasp(self, context, output):
+        # TODO: use the segmented clouds to do smarter grasp selection
         segmented_clouds = self.get_input_port(
             self._segmented_clouds_index).Eval(context)
         down_sampled_pcd = self.get_input_port(

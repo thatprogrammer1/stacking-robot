@@ -1,12 +1,8 @@
 
-from typing import List
-from collections import namedtuple
 import numpy as np
 from pydrake.all import (AbstractValue, Concatenate, LeafSystem, PointCloud,
                          RigidTransform,
-                         ImageLabel16I, BaseField, Fields)
-
-# CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
+                         BaseField, Fields)
 
 
 class MergePointClouds(LeafSystem):
@@ -14,7 +10,6 @@ class MergePointClouds(LeafSystem):
         LeafSystem.__init__(self)
         self._meshcat = meshcat
         model_point_cloud = AbstractValue.Make(PointCloud(0))
-        label_images = AbstractValue.Make(ImageLabel16I(640, 480))
 
         self._num_cameras = len(camera_body_indices)
         self._camera_ports = []
@@ -26,10 +21,11 @@ class MergePointClouds(LeafSystem):
         self.DeclareAbstractInputPort(
             "body_poses", AbstractValue.Make([RigidTransform()]))
 
-        # Fields(14) means the point cloud we are returning has XYZ, RGB, and Normals
-        # Required because otherwise the PointClouds are not compatible
         self.DeclareAbstractOutputPort(
-            "point_cloud", lambda: AbstractValue.Make(PointCloud(new_size=0, fields=Fields(BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals))), self.GetPointCloud)
+            "point_cloud",
+            lambda: AbstractValue.Make(PointCloud(new_size=0, fields=Fields(
+                BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals))),
+            self.GetPointCloud)
 
         # Compute crop box.
         context = plant.CreateDefaultContext()
@@ -62,7 +58,7 @@ class MergePointClouds(LeafSystem):
 
         merged_pcd = Concatenate(pcd)
         down_sampled_pcd = merged_pcd.VoxelizedDownSample(voxel_size=0.005)
-        if True:
+        if False:
             self._meshcat.SetObject(
                 "/down_sampled_pcd", down_sampled_pcd, point_size=0.005)
         output.set_value(down_sampled_pcd)

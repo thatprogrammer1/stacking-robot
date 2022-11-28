@@ -38,6 +38,8 @@ class GraspSelector(LeafSystem):
 
         self._point_cloud_index = self.DeclareAbstractInputPort(
             "point_cloud", model_point_cloud).get_index()
+        self._segmented_clouds_index = self.DeclareAbstractInputPort(
+            "segmented_clouds", AbstractValue.Make([])).get_index()
 
         port = self.DeclareAbstractOutputPort(
             "grasp_selection", lambda: AbstractValue.Make(
@@ -49,6 +51,8 @@ class GraspSelector(LeafSystem):
         self._rng = np.random.default_rng(random_seed)
 
     def SelectGrasp(self, context, output):
+        segmented_clouds = self.get_input_port(
+            self._segmented_clouds_index).Eval(context)
         down_sampled_pcd = self.get_input_port(
             self._point_cloud_index).Eval(context)
 
@@ -67,6 +71,12 @@ class GraspSelector(LeafSystem):
         cloud.mutable_normals()[:] = grasp_points[1]
 
         if True:
+            # Visualize how the points are segmented
+            for i in range(len(segmented_clouds)):
+                self._meshcat.SetObject(
+                    f"/segmented_cloud_{i}", segmented_clouds[i], point_size=0.005)
+
+            # Visualize what points are candidates for grasp selection
             self._meshcat.SetObject(
                 "/grasp_selection_points", cloud, point_size=0.005)
         costs = []

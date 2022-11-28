@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from perception.color_segmentation import ColorSegmentation
 from perception.merge_point_clouds import MergePointClouds
 from planning.stack_detector import StackDetector
 from planning.stacking_planner import StackingPlanner
@@ -154,12 +155,17 @@ def BuildStackingDiagram(meshcat, seed):
     builder.Connect(station.GetOutputPort("body_poses"),
                     merge_point_clouds.GetInputPort("body_poses"))
 
+    color_segmentation = builder.AddSystem(ColorSegmentation())
+    builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
+                    color_segmentation.GetInputPort("point_cloud"))
     grasp_selector = builder.AddSystem(
         GraspSelector(stacking_zone_center=np.array(
             [.6, .2]), stacking_zone_radius=.07, meshcat=meshcat, random_seed=seed)
     )
     builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
                     grasp_selector.GetInputPort("point_cloud"))
+    builder.Connect(color_segmentation.GetOutputPort("segmented_clouds"),
+                    grasp_selector.GetInputPort("segmented_clouds"))
 
     # TODO (khm): add stack detector, wire planner to use its output to figure out where to place next
     detector = builder.AddSystem(StackDetector(

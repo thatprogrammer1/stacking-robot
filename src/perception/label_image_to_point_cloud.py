@@ -12,15 +12,17 @@ CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
 
 class LabelImageToPointCloud(LeafSystem):
     """
+    Generate PointCloud from camera image. 
+    This code also filters out the iiwa by cheating and using labels.
+
     Input ports:
     - label_image
     - depth_image
-    - color_iamge
+    - color_image
+    - camera_pose
 
     Output ports:
-    - PointCloud, filtering out iiwa labels
-    - Segmentation could be done at this point, such as returning point clouds for each 
-        object
+    - point_cloud
     """
 
     def __init__(self, camera_info, model_labels):

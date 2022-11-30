@@ -31,6 +31,7 @@ class COMSolver(LeafSystem):
 
     def external_torque_from(self, body_poses, displacement, force):
         res = []
+        # reversed_joints = [2, 3, 4, 6]
         for idx in range(7):
             joint_name = f"iiwa_joint_{idx + 1}"
             joint = self._plant.GetJointByName(joint_name)
@@ -38,7 +39,9 @@ class COMSolver(LeafSystem):
                 self._plant.GetBodyByName(f"iiwa_link_{idx}").index())]
             X_par_joint = joint.frame_on_parent().GetFixedPoseInBodyFrame()
             X_joint = X_par @ X_par_joint
-            joint_axis = X_joint.inverse().rotation() @ joint.revolute_axis()
+            joint_axis = X_joint.rotation() @ joint.revolute_axis()
+            # if idx in reversed_joints:
+            #     joint_axis = -joint_axis
             joint_position = X_joint.translation()
             AddMeshcatTriad(
                 self._meshcat, f"joint{idx}", X_PT=X_joint)
@@ -55,6 +58,7 @@ class COMSolver(LeafSystem):
         external_torques = self.get_input_port(
             self._external_torque_index).Eval(context)
         body_poses = self.get_input_port(self._body_poses_index).Eval(context)
+        # reversed_joints = [3, 4, 5, 6]
         for idx in range(7):
             joint_name = f"iiwa_joint_{idx + 1}"
             joint = self._plant.GetJointByName(joint_name)
@@ -62,7 +66,9 @@ class COMSolver(LeafSystem):
                 self._plant.GetBodyByName(f"iiwa_link_{idx}").index())]
             X_par_joint = joint.frame_on_parent().GetFixedPoseInBodyFrame()
             X_joint = X_par @ X_par_joint
-            joint_axis = X_joint.inverse().rotation() @ joint.revolute_axis()
+            joint_axis = X_joint.rotation() @ joint.revolute_axis()
+            # if idx in reversed_joints:
+            #     joint_axis = -joint_axis
             joint_position = X_joint.translation()
             AddMeshcatTriad(
                 self._meshcat, f"joint{idx}", X_PT=X_joint)
@@ -74,13 +80,22 @@ class COMSolver(LeafSystem):
         program.AddLinearConstraint(force[0] <= 0)
         program.SetInitialGuess(displacement, body_poses[int(
             self._plant.GetBodyByName(f"iiwa_link_7").index())].translation())
-        program.SetInitialGuess(force, np.array([-10]))
+        program.SetInitialGuess(force, np.array([-0.3]))
         result = Solve(program)
         if result.is_success():
             com = result.GetSolution(displacement)
             output.set_value(com)
             expected = self.external_torque_from(
                 body_poses, result.GetSolution(displacement), result.GetSolution(force))
+            normalized_t = external_torques / np.sum(np.abs(external_torques))
+            brick_ts = []
+            for idx in range(17, 20):
+                brick_ts.append(self.external_torque_from(
+                    body_poses, body_poses[idx].translation(), [-0.028]))
+            normalized_bricks = []
+            for brick_t in brick_ts:
+                normalized_bricks.append(
+                    brick_t / np.sum(np.abs(brick_t)))
             self._meshcat.SetObject(
                 path="/com", shape=Sphere(0.01), rgba=Rgba(0.19, 0.72, 0.27, 1.0))
             self._meshcat.SetTransform(

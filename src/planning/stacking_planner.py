@@ -101,7 +101,7 @@ class StackingPlanner(LeafSystem):
                 self.StartPicking(context, mode, times,
                                   traj_X_G, traj_wsg_command)
         else:
-            if times.get_value()["clearance"] < current_time and current_time < times.get_value()["rest_end"] and wsg_state[0] > 0.01:
+            if times.get_value()["twist"] < current_time and current_time < times.get_value()["rest_end"] and wsg_state[0] > 0.01:
                 com = self.get_input_port(self._com_index).Eval(context)
                 print(f"COM calculated: {com}")
             # If we are between pick and place and the gripper is closed, then

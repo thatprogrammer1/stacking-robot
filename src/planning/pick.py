@@ -45,6 +45,11 @@ def MakeGripperFrames(X_G, t0=0):
         p_G[:1] /= scale
     X_G["clearance"].set_translation(p_G)
 
+    X_GclearanceGtwist = RigidTransform(
+        AngleAxis(angle=0.2, axis=np.array([1, 1, 1]) / np.sqrt(3)),
+        np.zeros((3,)))
+    X_G["twist"] = X_G["clearance"] @ X_GclearanceGtwist
+
     # Now let's set the timing
     times = {"initial": t0}
     prepare_time = 10.0 * np.linalg.norm(X_GinitialGprepare.translation())
@@ -60,9 +65,12 @@ def MakeGripperFrames(X_G, t0=0):
     time_to_from_clearance = 10.0 * np.linalg.norm(
         X_GprepickGclearance.translation())
     times["clearance"] = times["postpick"] + time_to_from_clearance
-    times["rest_end"] = times["clearance"] + 2.0
-    X_G["rest_end"] = X_G["clearance"]
-    times["preplace"] = times["rest_end"] + time_to_from_clearance
+    times["twist"] = times["clearance"] + 4.0
+    times["rest_end"] = times["twist"] + 2.0
+    X_G["rest_end"] = X_G["twist"]
+    times["twist_back"] = times["rest_end"] + 4.0
+    X_G["twist_back"] = X_G["clearance"]
+    times["preplace"] = times["twist_back"] + time_to_from_clearance
     times["place_start"] = times["preplace"] + 2.0
     times["place_end"] = times["place_start"] + 2.0
     X_G["place_start"] = X_G["place"]
@@ -79,7 +87,7 @@ def MakeGripperPoseTrajectory(X_G, times):
     poses = []
     for name in [
             "initial", "prepare", "prepick", "pick_start", "pick_end",
-            "postpick", "clearance", "rest_end", "preplace", "place_start", "place_end",
+            "postpick", "clearance", "twist", "rest_end", "twist_back", "preplace", "place_start", "place_end",
             "postplace"
     ]:
         sample_times.append(times[name])

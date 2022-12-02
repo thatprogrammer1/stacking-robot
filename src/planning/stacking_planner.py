@@ -134,7 +134,7 @@ class StackingPlanner(LeafSystem):
 
     def StartPicking(self, context, mode, times, traj_X_G, traj_wsg_command):
         pick_pose = None
-        for _ in range(5):
+        for _ in range(1):
             cost, pick_pose = self.get_input_port(
                 self._grasp_index).Eval(context)
             if not np.isinf(cost):

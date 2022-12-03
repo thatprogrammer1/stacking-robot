@@ -3,7 +3,7 @@ import numpy as np
 from perception.merge_point_clouds import MergePointClouds
 from planning.stack_detector import StackDetector
 from planning.stacking_planner import StackingPlanner
-from planning.com_solver import COMSolver
+from planning.com_solver import COMProblem
 from pydrake.all import (DiagramBuilder,
                          MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, PolygonSurfaceMesh, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
 from manipulation.scenarios import (
@@ -178,14 +178,8 @@ def BuildStackingDiagram(meshcat, seed):
                     planner.GetInputPort("wsg_state"))
     builder.Connect(station.GetOutputPort("iiwa_position_measured"),
                     planner.GetInputPort("iiwa_position"))
-
-    com_solver = builder.AddSystem(COMSolver(plant, meshcat))
     builder.Connect(station.GetOutputPort("iiwa_torque_external"),
-                    com_solver.GetInputPort("external_torque"))
-    builder.Connect(station.GetOutputPort("body_poses"),
-                    com_solver.GetInputPort("body_poses"))
-    builder.Connect(com_solver.GetOutputPort(
-        "com"), planner.GetInputPort("com"))
+                    planner.GetInputPort("external_torque"))
 
     robot = station.GetSubsystemByName(
         "iiwa_controller").get_multibody_plant_for_control()

@@ -1,111 +1,114 @@
 import numpy as np
 from pydrake.all import (AngleAxis, PiecewisePolynomial, PiecewisePose,
                          RigidTransform, RotationMatrix)
+from typing import (List, Tuple)
+
+Frame = Tuple[float, RigidTransform, bool]
 
 
-def MakeGripperFrames(X_G, t0=0):
+def MakePickFrames(initial_pose: RigidTransform, pick_pose: RigidTransform, clearance_pose: RigidTransform, t0: float) -> List[Frame]:
     """
-    Takes a partial specification with X_G["initial"], X_G["pick"], and
-    X_G["place"], and returns a X_G and times with all of the pick and place
-    frames populated.
+    initial_pose: the initial pose of the gripper
+    pick_pose: the pose the gripper should be in to pick the object
+    t0: time the trajectory starts at.
+
+    Returns sequence of frames, which are tuples of:
+    - time
+    - gripper pose
+    - is gripper open (Boolean)
+    "initial" -> "prepare" -> "pre_pick" -> "pick_start" -> "pick_end" -> "postpick" -> "clearance"
     """
+    frames = []
+
     # pregrasp is negative y in the gripper frame (see the figure!).
     X_GgraspGpregrasp = RigidTransform([0, -0.2, 0])
 
-    X_G["prepick"] = X_G["pick"] @ X_GgraspGpregrasp
-    X_G["preplace"] = X_G["place"] @ X_GgraspGpregrasp
+    prepick_pose = pick_pose @ X_GgraspGpregrasp
 
     # I'll interpolate a halfway orientation by converting to axis angle and
     # halving the angle.
-    X_GinitialGprepick = X_G["initial"].inverse() @ X_G["prepick"]
+    X_GinitialGprepick = initial_pose.inverse() @ prepick_pose
     angle_axis = X_GinitialGprepick.rotation().ToAngleAxis()
     X_GinitialGprepare = RigidTransform(
         AngleAxis(angle=angle_axis.angle() / 2.0, axis=angle_axis.axis()),
         X_GinitialGprepick.translation() / 2.0)
-    X_G["prepare"] = X_G["initial"] @ X_GinitialGprepare
-    p_G = np.array(X_G["prepare"].translation())
+
+    prepare_pose = initial_pose @ X_GinitialGprepare
+    p_G = np.array(prepare_pose.translation())
     p_G[2] = 0.5
     # To avoid hitting the cameras, make sure the point satisfies x - y < .5
     if p_G[0] - p_G[1] < .5:
         scale = .5 / (p_G[0] - p_G[1])
         p_G[:1] /= scale
-    X_G["prepare"].set_translation(p_G)
+    prepare_pose.set_translation(p_G)
+    prepare_time = 10.0 * np.linalg.norm(X_GinitialGprepare.translation())
+    clearance_time = 10.0 * \
+        np.linalg.norm(prepick_pose.translation() -
+                       clearance_pose.translation())
 
-    X_GprepickGpreplace = X_G["prepick"].inverse() @ X_G["preplace"]
-    angle_axis = X_GprepickGpreplace.rotation().ToAngleAxis()
-    X_GprepickGclearance = RigidTransform(
-        AngleAxis(angle=angle_axis.angle() / 2.0, axis=angle_axis.axis()),
-        X_GprepickGpreplace.translation() / 2.0)
-    X_G["clearance"] = X_G["prepick"] @ X_GprepickGclearance
-    p_G = np.array(X_G["clearance"].translation())
-    p_G[2] = 0.5
-    # To avoid hitting the cameras, make sure the point satisfies x - y < .5
-    if p_G[0] - p_G[1] < .5:
-        scale = .5 / (p_G[0] - p_G[1])
-        p_G[:1] /= scale
-    X_G["clearance"].set_translation(p_G)
+    frames.append((t0, initial_pose, True))
+    frames.append((frames[-1][0] + prepare_time, prepare_pose, True))
+    frames.append((frames[-1][0] + prepare_time, prepick_pose, True))
+    frames.append((frames[-1][0] + 2.0, pick_pose, True))
+    frames.append((frames[-1][0] + 2.0, pick_pose, False))
+    frames.append((frames[-1][0] + 2.0, prepick_pose, False))
+    frames.append((frames[-1][0] + clearance_time, clearance_pose, False))
 
+    return frames
+
+
+def MakeTwistFrames(initial_pose: RigidTransform, t0: float) -> List[Frame]:
     X_GclearanceGtwist = RigidTransform(
         AngleAxis(angle=0.2, axis=np.array([1, 1, 1]) / np.sqrt(3)),
         np.zeros((3,)))
-    X_G["twist"] = X_G["clearance"] @ X_GclearanceGtwist
+    twist_pose = initial_pose @ X_GclearanceGtwist
 
-    # Now let's set the timing
-    times = {"initial": t0}
-    prepare_time = 10.0 * np.linalg.norm(X_GinitialGprepare.translation())
-    times["prepare"] = times["initial"] + prepare_time
-    times["prepick"] = times["prepare"] + prepare_time
-    # Allow some time for the gripper to close.
-    times["pick_start"] = times["prepick"] + 2.0
-    times["pick_end"] = times["pick_start"] + 2.0
-    X_G["pick_start"] = X_G["pick"]
-    X_G["pick_end"] = X_G["pick"]
-    times["postpick"] = times["pick_end"] + 2.0
-    X_G["postpick"] = X_G["prepick"]
-    time_to_from_clearance = 10.0 * np.linalg.norm(
-        X_GprepickGclearance.translation())
-    times["clearance"] = times["postpick"] + time_to_from_clearance
-    times["twist"] = times["clearance"] + 4.0
-    times["rest_end"] = times["twist"] + 2.0
-    X_G["rest_end"] = X_G["twist"]
-    times["twist_back"] = times["rest_end"] + 4.0
-    X_G["twist_back"] = X_G["clearance"]
-    times["preplace"] = times["twist_back"] + time_to_from_clearance
-    times["place_start"] = times["preplace"] + 2.0
-    times["place_end"] = times["place_start"] + 2.0
-    X_G["place_start"] = X_G["place"]
-    X_G["place_end"] = X_G["place"]
-    times["postplace"] = times["place_end"] + 2.0
-    X_G["postplace"] = X_G["preplace"]
-
-    return X_G, times
+    frames = []
+    frames.append((t0, initial_pose, False))
+    frames.append((t0 + 4.0, twist_pose, False))
+    return frames
 
 
-def MakeGripperPoseTrajectory(X_G, times):
-    """Constructs a gripper position trajectory from the plan "sketch"."""
+def MakePlaceFrames(initial_pose: RigidTransform, place_pose: RigidTransform, t0: float) -> List[Frame]:
+    """
+    initial_pose: pose of gripper after clearance
+
+    Returns sequence of frames.
+    "initial" -> "place_start" -> "place_end" -> "postplace"
+    """
+    frames = []
+    X_GgraspGpregrasp = RigidTransform([0, -0.2, 0])
+
+    time_to_grasp = 10.0 * \
+        np.linalg.norm(place_pose.translation() -
+                       initial_pose.translation())
+
+    preplace_pose = place_pose @ X_GgraspGpregrasp
+
+    frames.append((t0, initial_pose, False))
+    frames.append((frames[-1][0] + time_to_grasp, preplace_pose, False))
+    frames.append((frames[-1][0] + 2.0, place_pose, False))
+    frames.append((frames[-1][0] + 2.0, place_pose, True))
+    frames.append((frames[-1][0] + 2.0, preplace_pose, True))
+
+    return frames
+
+
+def MakeGripperTrajectories(frames: List[Frame]) -> Tuple[PiecewisePose, PiecewisePolynomial]:
+    """
+    Constructs a gripper position and WSG trajectory from the planned frames.
+    """
     sample_times = []
     poses = []
-    for name in [
-            "initial", "prepare", "prepick", "pick_start", "pick_end",
-            "postpick", "clearance", "twist", "rest_end", "twist_back", "preplace", "place_start", "place_end",
-            "postplace"
-    ]:
-        sample_times.append(times[name])
-        poses.append(X_G[name])
 
-    return PiecewisePose.MakeLinear(sample_times, poses)
-
-
-def MakeGripperCommandTrajectory(times):
-    """Constructs a WSG command trajectory from the plan "sketch"."""
     opened = np.array([0.107])
     closed = np.array([0.0])
+    wsg_samples = []
 
-    traj_wsg_command = PiecewisePolynomial.FirstOrderHold(
-        [times["initial"], times["pick_start"]], np.hstack([[opened],
-                                                            [opened]]))
-    traj_wsg_command.AppendFirstOrderSegment(times["pick_end"], closed)
-    traj_wsg_command.AppendFirstOrderSegment(times["place_start"], closed)
-    traj_wsg_command.AppendFirstOrderSegment(times["place_end"], opened)
-    traj_wsg_command.AppendFirstOrderSegment(times["postplace"], opened)
-    return traj_wsg_command
+    for (time, pose, is_open) in frames:
+        sample_times.append(time)
+        poses.append(pose)
+
+        wsg_samples.append(opened if is_open else closed)
+
+    return PiecewisePose.MakeLinear(sample_times, poses), PiecewisePolynomial.FirstOrderHold(sample_times, np.array(wsg_samples).T)

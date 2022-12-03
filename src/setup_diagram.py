@@ -4,6 +4,7 @@ from perception.color_segmentation import ColorSegmentation
 from perception.merge_point_clouds import MergePointClouds
 from planning.stack_detector import StackDetector
 from planning.stacking_planner import StackingPlanner
+from planning.com_solver import COMProblem
 from pydrake.all import (DiagramBuilder,
                          MeshcatVisualizer, MeshcatVisualizerParams, Role, PortSwitch, Box, PolygonSurfaceMesh, RigidTransform, RotationMatrix, AddMultibodyPlantSceneGraph, SpatialInertia, UnitInertia, CoulombFriction)
 from manipulation.scenarios import (
@@ -183,6 +184,8 @@ def BuildStackingDiagram(meshcat, seed):
                     planner.GetInputPort("wsg_state"))
     builder.Connect(station.GetOutputPort("iiwa_position_measured"),
                     planner.GetInputPort("iiwa_position"))
+    builder.Connect(station.GetOutputPort("iiwa_torque_external"),
+                    planner.GetInputPort("external_torque"))
 
     robot = station.GetSubsystemByName(
         "iiwa_controller").get_multibody_plant_for_control()

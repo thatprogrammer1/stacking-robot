@@ -1,21 +1,70 @@
 from copy import copy
-from enum import Enum
+from dataclasses import dataclass
 
 import numpy as np
 from manipulation.meshcat_utils import AddMeshcatTriad
-from manipulation.pick import (MakeGripperCommandTrajectory, MakeGripperFrames,
-                               MakeGripperPoseTrajectory)
+from planning.pick import (
+    MakePickFrames, MakePlaceFrames, MakeTwistFrames, MakeGripperTrajectories)
 from pydrake.all import (AbstractValue,
                          InputPortIndex,
                          LeafSystem, PiecewisePolynomial, PiecewisePose, RigidTransform,
                          RollPitchYaw,
-                         PointCloud)
+                         PointCloud, Sphere, Rgba)
+from planning.com_solver import COMProblem
 
 
-class PlannerState(Enum):
-    WAIT_FOR_OBJECTS_TO_SETTLE = 1
-    PICKING = 2
-    GO_HOME = 3
+@dataclass
+class InitialState:
+    pass
+
+
+@dataclass
+class SettleState:
+    held_pose: RigidTransform
+    start_time: float
+
+
+@dataclass
+class PickState:
+    pose_trajectory: PiecewisePose
+    wsg_trajectory: PiecewisePolynomial
+    target_stack_point: np.ndarray
+
+
+@dataclass
+class COMPhase1State:
+    held_pose: RigidTransform
+    start_time: float
+    problem: COMProblem
+    target_stack_point: np.ndarray
+
+
+@dataclass
+class TwistState:
+    pose_trajectory: PiecewisePose
+    wsg_trajectory: PiecewisePolynomial
+    problem: COMProblem
+    target_stack_point: np.ndarray
+
+
+@dataclass
+class COMPhase2State:
+    held_pose: RigidTransform
+    start_time: float
+    problem: COMProblem
+    target_stack_point: np.ndarray
+
+
+@dataclass
+class PlaceState:
+    pose_trajectory: PiecewisePose
+    wsg_trajectory: PiecewisePolynomial
+    target_stack_point: np.ndarray
+
+
+@dataclass
+class GoHomeState:
+    joint_trajectory: PiecewisePolynomial
 
 
 class StackingPlanner(LeafSystem):
@@ -26,6 +75,10 @@ class StackingPlanner(LeafSystem):
             "stack_position", 3).get_index()
 
         self._gripper_body_index = plant.GetBodyByName("body").index()
+        self._iiwa_joints = [plant.GetJointByName(
+            f"iiwa_joint_{idx + 1}") for idx in range(7)]
+        self._iiwa_link_indices = [plant.GetBodyByName(
+            f"iiwa_link_{idx}").index() for idx in range(7)]
         num_positions = 7
 
         self._body_poses_index = self.DeclareAbstractInputPort(
@@ -35,18 +88,10 @@ class StackingPlanner(LeafSystem):
                 (np.inf, RigidTransform()))).get_index()
         self._wsg_state_index = self.DeclareVectorInputPort("wsg_state",
                                                             2).get_index()
-
-        self._mode_index = self.DeclareAbstractState(
-            AbstractValue.Make(PlannerState.WAIT_FOR_OBJECTS_TO_SETTLE))
-        self._traj_X_G_index = self.DeclareAbstractState(
-            AbstractValue.Make(PiecewisePose()))
-        self._traj_wsg_index = self.DeclareAbstractState(
-            AbstractValue.Make(PiecewisePolynomial()))
-        self._times_index = self.DeclareAbstractState(AbstractValue.Make(
-            {"initial": 0.0}))
-
         self._iiwa_position_index = self.DeclareVectorInputPort(
             "iiwa_position", num_positions).get_index()
+        self._external_torque_index = self.DeclareVectorInputPort(
+            "external_torque", 7).get_index()
 
         self.DeclareAbstractOutputPort(
             "X_WG", lambda: AbstractValue.Make(RigidTransform()),
@@ -62,9 +107,9 @@ class StackingPlanner(LeafSystem):
         self.DeclareVectorOutputPort("iiwa_position_command", num_positions,
                                      self.CalcIiwaPosition)
 
-        self._q0_index = self.DeclareDiscreteState(num_positions)  # for q0
-        self._traj_q_index = self.DeclareAbstractState(
-            AbstractValue.Make(PiecewisePolynomial()))
+        self._home_index = self.DeclareDiscreteState(num_positions)
+        self._mode_index = self.DeclareAbstractState(
+            AbstractValue.Make(InitialState()))
 
         self.DeclareInitializationDiscreteUpdateEvent(self.Initialize)
 
@@ -75,64 +120,98 @@ class StackingPlanner(LeafSystem):
 
     def Update(self, context, state):
         mode = state.get_mutable_abstract_state(int(self._mode_index))
-        times = state.get_mutable_abstract_state(int(
-            self._times_index))
-        traj_X_G = state.get_mutable_abstract_state(
-            int(self._traj_X_G_index))
-        traj_q = state.get_mutable_abstract_state(int(
-            self._traj_q_index))
-        traj_wsg_command = state.get_mutable_abstract_state(int(
-            self._traj_wsg_index))
+        mode_val = mode.get_value()
 
         current_time = context.get_time()
-        wsg_state = self.get_input_port(
-            self._wsg_state_index).Eval(context)
-        X_G = self.get_input_port(self._body_poses_index).Eval(context)[int(
-            self._gripper_body_index)]
+        wsg_state = self.get_input_port(self._wsg_state_index).Eval(context)
+        body_poses = self.get_input_port(self._body_poses_index).Eval(context)
+        X_G = body_poses[int(self._gripper_body_index)]
 
-        if mode.get_value() == PlannerState.WAIT_FOR_OBJECTS_TO_SETTLE:
-            if context.get_time() - times.get_value()["initial"] > 1.0:
-                self.StartPicking(context, mode, times,
-                                  traj_X_G, traj_wsg_command)
-        elif mode.get_value() == PlannerState.GO_HOME:
-            if not traj_q.get_value().is_time_in_range(current_time):
-                self.StartPicking(context, mode, times,
-                                  traj_X_G, traj_wsg_command)
-        else:
-            # If we are between pick and place and the gripper is closed, then
-            # we've missed or dropped the object.  Time to replan.
-            if times.get_value()["postpick"] < current_time and current_time < times.get_value()["preplace"] and wsg_state[0] < 0.01:
-                self.StartWaitForObjectToSettle(
-                    current_time, X_G, mode, times, traj_X_G)
-            elif not traj_X_G.get_value().is_time_in_range(current_time):
-                self.StartPicking(context, mode, times,
-                                  traj_X_G, traj_wsg_command)
-            elif np.linalg.norm(traj_X_G.get_value().GetPose(current_time).translation() - X_G.translation()) > 0.2:
-                # If my trajectory tracking has gone this wrong, then I'd better
-                # stop and replan.  TODO(russt): Go home, in joint coordinates,
-                # instead.
-                self.StartGoHome(context, mode, traj_q)
+        if isinstance(mode_val, InitialState):
+            mode.set_value(SettleState(X_G, current_time))
+        elif isinstance(mode_val, SettleState):
+            start_time = mode_val.start_time
+            if current_time > start_time + 1.0:
+                self.StartPicking(context, mode)
+        elif (isinstance(mode_val, PickState) or isinstance(mode_val, TwistState) or isinstance(mode_val, PlaceState)) and np.linalg.norm(mode_val.pose_trajectory.GetPose(current_time).translation() - X_G.translation()) > 0.2:
+            print("Replanning due to large tracking error.")
+            q = self.get_input_port(
+                self._iiwa_position_index).Eval(context)
+            home = copy(context.get_discrete_state(
+                self._home_index).get_value())
+            home[0] = q[0]  # Safer to not reset the first joint.
+            mode.set_value(GoHomeState(
+                PiecewisePolynomial.FirstOrderHold(
+                    [current_time, current_time + 5.0], np.vstack((q, home)).T)
+            ))
+        elif isinstance(mode_val, PickState):
+            pose_trajectory = mode_val.pose_trajectory
+            target_stack_point = mode_val.target_stack_point
+            if not pose_trajectory.is_time_in_range(current_time):
+                mode.set_value(COMPhase1State(
+                    X_G, current_time, COMProblem(), target_stack_point))
+        elif isinstance(mode_val, COMPhase1State):
+            start_time = mode_val.start_time
+            problem = mode_val.problem
+            target_stack_point = mode_val.target_stack_point
+            if wsg_state[0] < 0.01:
+                mode.set_value(SettleState(
+                    X_G,
+                    current_time
+                ))
+            elif current_time > start_time + 2.0:
+                external_torques = self.get_input_port(
+                    self._external_torque_index).Eval(context)
+                problem.add_com_costs(self._iiwa_joints, [
+                    body_poses[idx] for idx in self._iiwa_link_indices], external_torques, X_G)
+                mode.set_value(TwistState(
+                    *MakeGripperTrajectories(MakeTwistFrames(X_G, current_time)),
+                    problem=problem,
+                    target_stack_point=target_stack_point
+                ))
+        elif isinstance(mode_val, TwistState):
+            pose_trajectory = mode_val.pose_trajectory
+            problem = mode_val.problem
+            target_stack_point = mode_val.target_stack_point
+            if not pose_trajectory.is_time_in_range(current_time):
+                mode.set_value(COMPhase2State(
+                    X_G, current_time, problem, target_stack_point))
+        elif isinstance(mode_val, COMPhase2State):
+            start_time = mode_val.start_time
+            problem = mode_val.problem
+            target_stack_point = mode_val.target_stack_point
+            if current_time > start_time + 2.0:
+                external_torques = self.get_input_port(
+                    self._external_torque_index).Eval(context)
+                problem.add_com_costs(self._iiwa_joints, [
+                    body_poses[idx] for idx in self._iiwa_link_indices], external_torques, X_G)
+                com = problem.solve()
+                self._meshcat.SetObject(
+                    path="/com", shape=Sphere(0.01), rgba=Rgba(0.19, 0.72, 0.27, 1.0))
+                self._meshcat.SetTransform(
+                    path="/com", X_ParentPath=RigidTransform(X_G) @ RigidTransform(com))
+                height_offset = np.array([0, 0, 0.1])
+                R_G = RollPitchYaw(-np.pi / 2, 0, np.pi / 2)
+                place_pose = RigidTransform(
+                    R_G,
+                    target_stack_point + height_offset - R_G.ToRotationMatrix() @ com)
+                AddMeshcatTriad(self._meshcat, "place", X_PT=place_pose)
+                mode.set_value(PlaceState(
+                    *MakeGripperTrajectories(MakePlaceFrames(X_G, place_pose, current_time)),
+                    target_stack_point=target_stack_point
+                ))
+        elif isinstance(mode_val, PlaceState):
+            pose_trajectory = mode_val.pose_trajectory
+            if not pose_trajectory.is_time_in_range(current_time):
+                self.StartPicking(context, mode)
+        elif isinstance(mode_val, GoHomeState):
+            joint_trajectory = mode_val.joint_trajectory
+            if not joint_trajectory.is_time_in_range(current_time):
+                self.StartPicking(context, mode)
 
-    def StartWaitForObjectToSettle(self, current_time, X_G, mode, times, traj_X_G):
-        mode.set_value(
-            PlannerState.WAIT_FOR_OBJECTS_TO_SETTLE)
-        times.set_value({"initial": current_time})
-        traj_X_G.set_value(PiecewisePose.MakeLinear(
-            [current_time, np.inf], [X_G, X_G]))
-
-    def StartGoHome(self, context, mode, traj_q):
-        print("Replanning due to large tracking error.")
-        mode.set_value(PlannerState.GO_HOME)
-        q = self.get_input_port(self._iiwa_position_index).Eval(context)
-        q0 = copy(context.get_discrete_state(self._q0_index).get_value())
-        q0[0] = q[0]  # Safer to not reset the first joint.
-
-        current_time = context.get_time()
-        q_traj = PiecewisePolynomial.FirstOrderHold(
-            [current_time, current_time + 5.0], np.vstack((q, q0)).T)
-        traj_q.set_value(q_traj)
-
-    def StartPicking(self, context, mode, times, traj_X_G, traj_wsg_command):
+    def StartPicking(self, context, mode):
+        initial_pose = self.get_input_port(self._body_poses_index).Eval(context)[
+            int(self._gripper_body_index)]
         pick_pose = None
         for _ in range(5):
             cost, pick_pose = self.get_input_port(
@@ -142,83 +221,74 @@ class StackingPlanner(LeafSystem):
         else:
             raise RuntimeError("Could not find a valid grasp after 5 attempts")
 
-        mode.set_value(PlannerState.PICKING)
+        height_offset = np.array([0, 0, 0.3])
+        stack_position = self.get_input_port(
+            self._stack_position_index).Eval(context)
+        clearance_pose = RigidTransform(
+            RollPitchYaw(-np.pi / 2, 0, np.pi / 2),
+            stack_position + height_offset)
 
+        frames = MakePickFrames(
+            initial_pose, pick_pose, clearance_pose, context.get_time())
+        AddMeshcatTriad(self._meshcat, "initial", X_PT=frames[0][1])
+        AddMeshcatTriad(self._meshcat, "prepick", X_PT=frames[2][1])
+        AddMeshcatTriad(self._meshcat, "pick", X_PT=pick_pose)
+        AddMeshcatTriad(self._meshcat, "clearance", X_PT=clearance_pose)
+        self._meshcat.SetObject(
+            path="/stack", shape=Sphere(0.01), rgba=Rgba(0.21, 0.38, 0.79, 1.0))
+        self._meshcat.SetTransform(
+            path="/stack", X_ParentPath=RigidTransform(stack_position))
         height_offset = np.array([0, 0, 0.1])
-        X_G, planned_times = MakeGripperFrames({
-            "initial":
-                self.get_input_port(self._body_poses_index).Eval(context)
-                [int(self._gripper_body_index)],
-            "pick": pick_pose,
-            "place": RigidTransform(
-                    RollPitchYaw(-np.pi / 2, 0, np.pi / 2),
-                    self.get_input_port(self._stack_position_index).Eval(context) + height_offset)
-        }, t0=context.get_time())
-        print(
-            f"Planned {planned_times['postplace'] - planned_times['initial']} second trajectory in picking mode at time {context.get_time()}."
-        )
-        times.set_value(planned_times)
 
-        if True:  # Useful for debugging
-            AddMeshcatTriad(self._meshcat, "X_Oinitial", X_PT=X_G["initial"])
-            AddMeshcatTriad(self._meshcat, "X_Gprepick", X_PT=X_G["prepick"])
-            AddMeshcatTriad(self._meshcat, "X_Gpick", X_PT=X_G["pick"])
-            AddMeshcatTriad(self._meshcat, "X_Gplace", X_PT=X_G["place"])
-
-        traj_X_G.set_value(MakeGripperPoseTrajectory(X_G, planned_times))
-        traj_wsg_command.set_value(MakeGripperCommandTrajectory(planned_times))
-
-    def start_time(self, context):
-        return context.get_abstract_state(
-            int(self._traj_X_G_index)).get_value().start_time()
-
-    def end_time(self, context):
-        return context.get_abstract_state(
-            int(self._traj_X_G_index)).get_value().end_time()
+        print(f"Planned a pick at time {context.get_time()}.")
+        mode.set_value(PickState(*MakeGripperTrajectories(frames),
+                       target_stack_point=stack_position))
 
     def CalcGripperPose(self, context, output):
-        traj_X_G = context.get_abstract_state(int(
-            self._traj_X_G_index)).get_value()
-        if (traj_X_G.get_number_of_segments() > 0 and
-                traj_X_G.is_time_in_range(context.get_time())):
-            # Evaluate the trajectory at the current time, and write it to the
-            # output port.
-            output.set_value(
-                context.get_abstract_state(int(
-                    self._traj_X_G_index)).get_value().GetPose(
-                        context.get_time()))
-            return
-
-        # Command the current position (note: this is not particularly good if the velocity is non-zero)
-        output.set_value(self.get_input_port(self._body_poses_index).Eval(context)
-                         [int(self._gripper_body_index)])
+        mode = context.get_abstract_state(int(self._mode_index)).get_value()
+        current_time = context.get_time()
+        if isinstance(mode, InitialState) or isinstance(mode, GoHomeState):
+            output.set_value(self.get_input_port(self._body_poses_index).Eval(context)
+                             [int(self._gripper_body_index)])
+        elif isinstance(mode, PickState) or isinstance(mode, TwistState) or isinstance(mode, PlaceState):
+            pose_trajectory = mode.pose_trajectory
+            if pose_trajectory.get_number_of_segments() > 0 and pose_trajectory.is_time_in_range(current_time):
+                output.set_value(pose_trajectory.GetPose(current_time))
+            else:
+                output.set_value(self.get_input_port(self._body_poses_index).Eval(context)
+                                 [int(self._gripper_body_index)])
+        elif isinstance(mode, SettleState) or isinstance(mode, COMPhase1State) or isinstance(mode, COMPhase2State):
+            held_pose = mode.held_pose
+            output.set_value(held_pose)
+        else:
+            raise RuntimeError(f"Unknown state: {mode}")
 
     def CalcWsgPosition(self, context, output):
         mode = context.get_abstract_state(int(self._mode_index)).get_value()
+        wsg_state = self.get_input_port(self._wsg_state_index).Eval(context)
+        current_time = context.get_time()
+
         opened = np.array([0.107])
         closed = np.array([0.0])
 
-        if mode == PlannerState.GO_HOME:
-            # Command the open position
+        if isinstance(mode, PickState) or isinstance(mode, TwistState) or isinstance(mode, PlaceState):
+            wsg_trajectory = mode.wsg_trajectory
+            if wsg_trajectory.get_number_of_segments() > 0 and wsg_trajectory.is_time_in_range(current_time):
+                output.SetFromVector(wsg_trajectory.value(current_time))
+            else:
+                output.SetFromVector(closed if isinstance(
+                    mode, PickState) or isinstance(mode, TwistState) else opened)
+        elif isinstance(mode, GoHomeState) or isinstance(mode, InitialState) or isinstance(mode, SettleState):
             output.SetFromVector([opened])
-            return
-
-        traj_wsg = context.get_abstract_state(int(
-            self._traj_wsg_index)).get_value()
-        if (traj_wsg.get_number_of_segments() > 0 and
-                traj_wsg.is_time_in_range(context.get_time())):
-            # Evaluate the trajectory at the current time, and write it to the
-            # output port.
-            output.SetFromVector(traj_wsg.value(context.get_time()))
-            return
-
-        # Command the open position
-        output.SetFromVector([opened])
+        elif isinstance(mode, COMPhase1State) or isinstance(mode, COMPhase2State):
+            output.SetFromVector([closed])
+        else:
+            raise RuntimeError(f"Unknown state: {mode}")
 
     def CalcControlMode(self, context, output):
         mode = context.get_abstract_state(int(self._mode_index)).get_value()
 
-        if mode == PlannerState.GO_HOME:
+        if isinstance(mode, GoHomeState):
             output.set_value(InputPortIndex(2))  # Go Home
         else:
             output.set_value(InputPortIndex(1))  # Diff IK
@@ -226,18 +296,22 @@ class StackingPlanner(LeafSystem):
     def CalcDiffIKReset(self, context, output):
         mode = context.get_abstract_state(int(self._mode_index)).get_value()
 
-        if mode == PlannerState.GO_HOME:
+        if isinstance(mode, GoHomeState):
             output.set_value(True)
         else:
             output.set_value(False)
 
     def Initialize(self, context, discrete_state):
         discrete_state.set_value(
-            int(self._q0_index),
+            int(self._home_index),
             self.get_input_port(int(self._iiwa_position_index)).Eval(context))
 
     def CalcIiwaPosition(self, context, output):
-        traj_q = context.get_abstract_state(int(
-            self._traj_q_index)).get_value()
+        mode = context.get_abstract_state(int(self._mode_index)).get_value()
+        q = self.get_input_port(self._iiwa_position_index).Eval(context)
+        current_time = context.get_time()
 
-        output.SetFromVector(traj_q.value(context.get_time()))
+        if isinstance(mode, GoHomeState):
+            output.SetFromVector(mode.joint_trajectory.value(current_time))
+        else:
+            output.SetFromVector(q)

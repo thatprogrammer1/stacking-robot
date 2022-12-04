@@ -33,8 +33,9 @@ class MergePointClouds(LeafSystem):
         X_B = plant.EvalBodyPoseInWorld(context, bin_body)
         margin = 0.001  # only because simulation is perfect!
         # TODO: change if we change bin size/location
-        a = X_B.multiply([-.5+margin, -.5+margin, 0.015+margin])
-        b = X_B.multiply([.5-margin, .5-0.025-margin, 0.5])
+        a = X_B.multiply([-.3+margin, -.3+margin, 0.015+margin])
+        b = X_B.multiply([.3-margin, .3-0.025-margin, 0.5])
+        print(a, b)
         self._crop_lower = np.minimum(a, b)
         self._crop_upper = np.maximum(a, b)
         

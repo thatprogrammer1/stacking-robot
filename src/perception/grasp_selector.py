@@ -8,7 +8,7 @@ from pydrake.all import (AbstractValue, AddMultibodyPlantSceneGraph, Concatenate
                          RollPitchYaw, ImageLabel16I, Fields, BaseField)
 
 from manipulation import FindResource, running_as_notebook
-from manipulation.clutter import GenerateAntipodalGraspCandidate
+from perception.grasping_utils import GenerateAntipodalGraspCandidate
 from manipulation.scenarios import (AddPackagePaths)
 
 

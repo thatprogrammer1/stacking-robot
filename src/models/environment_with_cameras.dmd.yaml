@@ -8,7 +8,7 @@ directives:
     X_PF:
         base_frame: world
         rotation: !Rpy { deg: [-130.0, 0, 0.0]}
-        translation: [.5, -.3, .4]
+        translation: [.35, -0.5, .5]
 
 - add_model:
     name: camera0
@@ -22,8 +22,8 @@ directives:
     name: camera1_origin
     X_PF:
         base_frame: world
-        rotation: !Rpy { deg: [-150., 0, 90.0]}
-        translation: [.7, 0.05, .5]
+        rotation: !Rpy { deg: [-140., 0, 90.0]}
+        translation: [1, 0, 0.5]
 
 - add_model:
     name: camera1
@@ -37,8 +37,8 @@ directives:
     name: camera2_origin
     X_PF:
         base_frame: world
-        rotation: !Rpy { deg: [-140., 0, -150.0]}
-        translation: [.25, .35, .45]
+        rotation: !Rpy { deg: [-130., 0, -135.0]}
+        translation: [0, .6, .4]
 
 - add_model:
     name: camera2

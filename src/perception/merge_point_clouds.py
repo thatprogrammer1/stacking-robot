@@ -33,10 +33,15 @@ class MergePointClouds(LeafSystem):
         X_B = plant.EvalBodyPoseInWorld(context, bin_body)
         margin = 0.001  # only because simulation is perfect!
         # TODO: change if we change bin size/location
-        a = X_B.multiply([-.22+0.025+margin, -.29+0.025+margin, 0.015+margin])
-        b = X_B.multiply([.22-0.1-margin, .29-0.025-margin, 2.0])
+        a = X_B.multiply([-.22+margin, -.29+margin, 0.015+margin])
+        b = X_B.multiply([.22-margin, .29-0.025-margin, 0.5])
         self._crop_lower = np.minimum(a, b)
         self._crop_upper = np.maximum(a, b)
+        
+        # Draws space diagonal of cropping box for visualization
+        meshcat.SetLineSegments(
+            "/cropping_box",  self._crop_lower[:, None],
+             self._crop_upper[:, None])
 
         self._camera_body_indices = camera_body_indices
 

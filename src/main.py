@@ -20,6 +20,7 @@ def clutter_clearing_demo(seed=None):
     meshcat.Delete()
     if seed == None:
         seed = np.random.randint(10000000)
+    # Good seeds,  7079183
     print("Using random seed: ", seed)
     rs = np.random.RandomState(seed)  # this is for python
     generator = RandomGenerator(rs.randint(1000))  # this is for c++

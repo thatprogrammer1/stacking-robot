@@ -72,9 +72,10 @@ directives:
 """
 
     def callback(plant):
-        box = Box(0.06, 0.06, 0.1)
-        for i in range(0):
-            AddBox(plant, box, f"box{i}", color=[0.6, 0.3, 0.2, 1.0])
+        pass
+        # box = Box(0.06, 0.06, 0.1)
+        # for i in range(0):
+        #     AddBox(plant, box, f"box{i}", color=[0.6, 0.3, 0.2, 1.0])
         # for i in range(1):
         #     x, y = random.uniform(xStart, xEnd), random.uniform(yStart, yEnd)
         #     print("Placing prism at", x, y)

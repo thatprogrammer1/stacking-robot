@@ -11,6 +11,7 @@ from pydrake.all import (AbstractValue,
                          RollPitchYaw,
                          PointCloud, Sphere, Rgba)
 from planning.com_solver import COMProblem
+from typing import (List, Union)
 
 
 @dataclass
@@ -22,6 +23,13 @@ class InitialState:
 class SettleState:
     held_pose: RigidTransform
     start_time: float
+    prev_stack_com: Union[np.ndarray, None]
+
+
+@dataclass
+class ClearSpaceState:
+    pose_trajectory: PiecewisePose
+    wsg_trajectory: PiecewisePolynomial
 
 
 @dataclass
@@ -29,6 +37,7 @@ class PickState:
     pose_trajectory: PiecewisePose
     wsg_trajectory: PiecewisePolynomial
     target_stack_point: np.ndarray
+    prev_stack_com: Union[np.ndarray, None]
 
 
 @dataclass
@@ -37,6 +46,7 @@ class COMPhase1State:
     start_time: float
     problem: COMProblem
     target_stack_point: np.ndarray
+    prev_stack_com: Union[np.ndarray, None]
 
 
 @dataclass
@@ -45,6 +55,7 @@ class TwistState:
     wsg_trajectory: PiecewisePolynomial
     problem: COMProblem
     target_stack_point: np.ndarray
+    prev_stack_com: Union[np.ndarray, None]
 
 
 @dataclass
@@ -53,6 +64,7 @@ class COMPhase2State:
     start_time: float
     problem: COMProblem
     target_stack_point: np.ndarray
+    prev_stack_com: Union[np.ndarray, None]
 
 
 @dataclass
@@ -60,11 +72,13 @@ class PlaceState:
     pose_trajectory: PiecewisePose
     wsg_trajectory: PiecewisePolynomial
     target_stack_point: np.ndarray
+    placed_com: Union[np.ndarray, None]
 
 
 @dataclass
 class GoHomeState:
     joint_trajectory: PiecewisePolynomial
+    prev_stack_com: Union[np.ndarray, None]
 
 
 class StackingPlanner(LeafSystem):
@@ -128,11 +142,15 @@ class StackingPlanner(LeafSystem):
         X_G = body_poses[int(self._gripper_body_index)]
 
         if isinstance(mode_val, InitialState):
-            mode.set_value(SettleState(X_G, current_time))
+            mode.set_value(SettleState(X_G, current_time, []))
         elif isinstance(mode_val, SettleState):
             start_time = mode_val.start_time
+            prev_stack_com = mode_val.prev_stack_com
+
             if current_time > start_time + 1.0:
-                self.StartPicking(context, mode)
+                self.StartPicking(context, mode, prev_stack_com)
+        elif isinstance(mode_val, ClearSpaceState):
+            pass
         elif (isinstance(mode_val, PickState) or isinstance(mode_val, TwistState) or isinstance(mode_val, PlaceState)) and np.linalg.norm(mode_val.pose_trajectory.GetPose(current_time).translation() - X_G.translation()) > 0.2:
             print("Replanning due to large tracking error.")
             q = self.get_input_port(
@@ -142,18 +160,22 @@ class StackingPlanner(LeafSystem):
             home[0] = q[0]  # Safer to not reset the first joint.
             mode.set_value(GoHomeState(
                 PiecewisePolynomial.FirstOrderHold(
-                    [current_time, current_time + 5.0], np.vstack((q, home)).T)
+                    [current_time, current_time + 5.0], np.vstack((q, home)).T), prev_stack_com
             ))
         elif isinstance(mode_val, PickState):
             pose_trajectory = mode_val.pose_trajectory
             target_stack_point = mode_val.target_stack_point
+            prev_stack_com = mode_val.prev_stack_com
+
             if not pose_trajectory.is_time_in_range(current_time):
                 mode.set_value(COMPhase1State(
-                    X_G, current_time, COMProblem(), target_stack_point))
+                    X_G, current_time, COMProblem(), target_stack_point, prev_stack_com))
         elif isinstance(mode_val, COMPhase1State):
             start_time = mode_val.start_time
             problem = mode_val.problem
             target_stack_point = mode_val.target_stack_point
+            prev_stack_com = mode_val.prev_stack_com
+
             if wsg_state[0] < 0.01:
                 mode.set_value(SettleState(
                     X_G,
@@ -167,19 +189,23 @@ class StackingPlanner(LeafSystem):
                 mode.set_value(TwistState(
                     *MakeGripperTrajectories(MakeTwistFrames(X_G, current_time)),
                     problem=problem,
-                    target_stack_point=target_stack_point
+                    target_stack_point=target_stack_point,
+                    prev_stack_com=prev_stack_com
                 ))
         elif isinstance(mode_val, TwistState):
             pose_trajectory = mode_val.pose_trajectory
             problem = mode_val.problem
             target_stack_point = mode_val.target_stack_point
+            prev_stack_com = mode_val.prev_stack_com
+
             if not pose_trajectory.is_time_in_range(current_time):
                 mode.set_value(COMPhase2State(
-                    X_G, current_time, problem, target_stack_point))
+                    X_G, current_time, problem, target_stack_point, prev_stack_com))
         elif isinstance(mode_val, COMPhase2State):
             start_time = mode_val.start_time
             problem = mode_val.problem
             target_stack_point = mode_val.target_stack_point
+
             if current_time > start_time + 2.0:
                 external_torques = self.get_input_port(
                     self._external_torque_index).Eval(context)
@@ -198,18 +224,21 @@ class StackingPlanner(LeafSystem):
                 AddMeshcatTriad(self._meshcat, "place", X_PT=place_pose)
                 mode.set_value(PlaceState(
                     *MakeGripperTrajectories(MakePlaceFrames(X_G, place_pose, current_time)),
-                    target_stack_point=target_stack_point
+                    target_stack_point=target_stack_point,
+                    stack_coms=place_pose @ com
                 ))
         elif isinstance(mode_val, PlaceState):
             pose_trajectory = mode_val.pose_trajectory
+            stack_coms = mode_val.stack_coms
             if not pose_trajectory.is_time_in_range(current_time):
-                self.StartPicking(context, mode)
+                self.StartPicking(context, mode, stack_coms)
         elif isinstance(mode_val, GoHomeState):
             joint_trajectory = mode_val.joint_trajectory
+            stack_coms = mode_val.stack_coms
             if not joint_trajectory.is_time_in_range(current_time):
-                self.StartPicking(context, mode)
+                self.StartPicking(context, mode, stack_coms)
 
-    def StartPicking(self, context, mode):
+    def StartPicking(self, context, mode, prev_com_stack):
         initial_pose = self.get_input_port(self._body_poses_index).Eval(context)[
             int(self._gripper_body_index)]
         pick_pose = None
@@ -242,7 +271,7 @@ class StackingPlanner(LeafSystem):
 
         print(f"Planned a pick at time {context.get_time()}.")
         mode.set_value(PickState(*MakeGripperTrajectories(frames),
-                       target_stack_point=stack_position))
+                       target_stack_point=stack_position, stack_coms=prev_com_stack))
 
     def CalcGripperPose(self, context, output):
         mode = context.get_abstract_state(int(self._mode_index)).get_value()

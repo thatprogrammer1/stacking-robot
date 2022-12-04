@@ -11,15 +11,29 @@ from manipulation import FindResource, running_as_notebook
 # from manipulation.clutter import GraspCandidateCost
 from manipulation.scenarios import (AddPackagePaths)
 
-def GraspCandidateCosta(diagram,
+
+
+def make_internal_model():
+    builder = DiagramBuilder()
+    plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.001)
+    parser = Parser(plant)
+    AddPackagePaths(parser)
+    parser.AddAllModelsFromFile(
+        FindResource("models/clutter_planning.dmd.yaml"))
+    plant.Finalize()
+    return builder.Build()
+
+
+def GraspCandidateCost(diagram,
                        context,
                        cloud,
+                       target_xyz,
                        wsg_body_index=None,
                        plant_system_name="plant",
                        scene_graph_system_name="scene_graph",
                        adjust_X_G=False,
                        verbose=False,
-                       meshcat=None):
+                       meshcat_path=None):
     """
     Args:
         diagram: A diagram containing a MultibodyPlant+SceneGraph that contains 
@@ -63,7 +77,7 @@ def GraspCandidateCosta(diagram,
                       crop_min[2] <= p_GC[2,:], p_GC[2,:] <= crop_max[2]),
                      axis=0)
 
-    if meshcat:
+    if meshcat_path:
         pc = PointCloud(np.sum(indices))
         pc.mutable_xyzs()[:] = cloud.xyzs()[:, indices]
         meshcat.SetObject("planning/points", pc, rgba=Rgba(1., 0, 0), point_size=0.01)
@@ -77,22 +91,25 @@ def GraspCandidateCosta(diagram,
 
     query_object = scene_graph.get_query_output_port().Eval(
         scene_graph_context)
-
+    
+    # (ANI) For some reason this part messes up the grasps so ditch it
     # Check collisions between the gripper and the sink
-    if query_object.HasCollisions():
-        cost = np.inf
-        if verbose:
-            print("Gripper is colliding with the sink!\n")
-            print(f"cost: {cost}")
-        return cost
+    # if query_object.HasCollisions():
+    #     cost = np.inf
+    #     if verbose:
+    #         print("Gripper is colliding with the sink!\n")
+    #         print(f"cost: {cost}")
+    #     return cost
 
     # Check collisions between the gripper and the point cloud
     margin = 0.0  # must be smaller than the margin used in the point cloud preprocessing.
     for i in range(cloud.size()):
+        # Only check points close to the target bc points from the other boxes dont matter
+        if np.linalg.norm(cloud.xyz(i) - target_xyz) > 0.2:
+            continue
         distances = query_object.ComputeSignedDistanceToPoint(cloud.xyz(i),
-                                                              threshold=0.01)
+                                                              threshold=margin)
         if distances:
-            print(distances)
             cost = np.inf
             if verbose:
                 print("Gripper is colliding with the point cloud!\n")
@@ -112,14 +129,13 @@ def GraspCandidateCosta(diagram,
         print(f"normal terms: {n_GC[0,:]**2}")
     return cost
 
-
 def GenerateAntipodalGraspCandidate(diagram,
                                     context,
                                     cloud,
                                     rng,
                                     wsg_body_index=None,
                                     plant_system_name="plant",
-                                    scene_graph_system_name="scene_graph", meshcat=None):
+                                    scene_graph_system_name="scene_graph"):
     """
     Picks a random point in the cloud, and aligns the robot finger with the normal of that pixel. 
     The rotation around the normal axis is drawn from a uniform distribution over [min_roll, max_roll].
@@ -156,6 +172,14 @@ def GenerateAntipodalGraspCandidate(diagram,
     p_WS = cloud.xyz(index)
     n_WS = cloud.normal(index)
 
+    # Don't select top of boxes
+    while abs(n_WS[2]) > abs(n_WS[0]) and abs(n_WS[2]) > abs(n_WS[1]):
+        index = rng.integers(0, cloud.size() - 1)
+        p_WS = cloud.xyz(index)
+        n_WS = cloud.normal(index)
+
+    print("Normal", n_WS)
+
     assert np.isclose(np.linalg.norm(n_WS),
                       1.0), f"Normal has magnitude: {np.linalg.norm(n_WS)}"
 
@@ -164,7 +188,6 @@ def GenerateAntipodalGraspCandidate(diagram,
     y = np.array([0.0, 0.0, -1.0])
     if np.abs(np.dot(y,Gx)) < 1e-6:
         # normal was pointing straight down.  reject this sample.
-        print("Normal was pointing down rejected")
         return np.inf, None
 
     Gy = y - np.dot(y,Gx)*Gx
@@ -173,8 +196,8 @@ def GenerateAntipodalGraspCandidate(diagram,
     p_GS_G = [0.054 - 0.01, 0.10625, 0]
 
     # Try orientations from the center out
-    min_roll=-np.pi/3.0
-    max_roll=np.pi/3.0
+    min_roll=-np.pi * 0.8
+    max_roll=np.pi * 0.8
     alpha = np.array([0.5, 0.65, 0.35, 0.8, 0.2, 1.0, 0.0])
     for theta in (min_roll + (max_roll - min_roll)*alpha):
         # Rotate the object in the hand by a random rotation (around the normal).
@@ -186,27 +209,15 @@ def GenerateAntipodalGraspCandidate(diagram,
 
         X_G = RigidTransform(R_WG2, p_WG)
         plant.SetFreeBodyPose(plant_context, wsg, X_G)
-        cost = GraspCandidateCosta(diagram, context, cloud, adjust_X_G=True, verbose=True, meshcat=meshcat)
+        cost = GraspCandidateCost(diagram, context, cloud, p_WS, adjust_X_G=True, verbose=True)
         X_G = plant.GetFreeBodyPose(plant_context, wsg)
         if np.isfinite(cost):
+            print("Cost ", cost)
             return cost, X_G
 
         #draw_grasp_candidate(X_G, f"collision/{theta:.1f}")
-    print("No Good costs found")
+    print("Inf")
     return np.inf, None
-
-
-# Another diagram for the objects the robot "knows about": gripper, cameras, bins.  Think of this as the model in the robot's head.
-def make_internal_model():
-    builder = DiagramBuilder()
-    plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.001)
-    parser = Parser(plant)
-    AddPackagePaths(parser)
-    parser.AddAllModelsFromFile(
-        FindResource("models/clutter_planning.dmd.yaml"))
-    plant.Finalize()
-    return builder.Build()
-
 
 class GraspSelector(LeafSystem):
     def __init__(self, stacking_zone_center: np.array, stacking_zone_radius: float, meshcat, random_seed=None):
@@ -236,27 +247,27 @@ class GraspSelector(LeafSystem):
         segmented_clouds = self.get_input_port(
             self._segmented_clouds_index).Eval(context)
         
-        print("Segmented", segmented_clouds)
+        # print("Segmented", segmented_clouds)
         
         down_sampled_pcd = self.get_input_port(
             self._point_cloud_index).Eval(context)
 
         # remove points from stack cylinder
         # hack to keep normals of points that remain
-        # points = np.array(
-        #     [down_sampled_pcd.xyzs(), down_sampled_pcd.normals()])
+        points = np.array(
+            [down_sampled_pcd.xyzs(), down_sampled_pcd.normals()])
         # print(points.shape)
-        # grasp_points = points[:, :, np.linalg.norm(
-        #     points[0, :2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) > self._stacking_zone_radius]
-        # num_points = grasp_points.shape[2]
+        grasp_points = points[:, :, np.linalg.norm(
+            points[0, :2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) > self._stacking_zone_radius]
+        num_points = grasp_points.shape[2]
         # print("Cylinder filtered", num_points)
-        # cloud = PointCloud(num_points,
-        #                    Fields(BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals))
-        # cloud.mutable_xyzs()[:] = grasp_points[0]
-        # cloud.mutable_rgbs()[:] = np.array(
-        #     [[0, 255, 0]]*num_points).T
-        # cloud.mutable_normals()[:] = grasp_points[1]
-        cloud = down_sampled_pcd
+        cloud = PointCloud(num_points,
+                           Fields(BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals))
+        cloud.mutable_xyzs()[:] = grasp_points[0]
+        cloud.mutable_rgbs()[:] = np.array(
+            [[0, 255, 0]]*num_points).T
+        cloud.mutable_normals()[:] = grasp_points[1]
+        # cloud = down_sampled_pcd
         
         if True:
             # Visualize how the points are segmented
@@ -276,10 +287,10 @@ class GraspSelector(LeafSystem):
         X_Gs = []
         # TODO(russt): Take the randomness from an input port, and re-enable
         # caching.
-        for i in range(100 if running_as_notebook else 2):
+        for i in range(1000):
             cost, X_G = GenerateAntipodalGraspCandidate(
                 self._internal_model, self._internal_model_context,
-                cloud, self._rng, meshcat=self._meshcat)
+                cloud, self._rng)
             if np.isfinite(cost):
                 costs.append(cost)
                 X_Gs.append(X_G)

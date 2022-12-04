@@ -1,6 +1,6 @@
 
 import numpy as np
-from pydrake.all import (AbstractValue, Concatenate, LeafSystem, PointCloud,
+from pydrake.all import (AbstractValue, Concatenate, LeafSystem, PointCloud, Rgba,
                          RigidTransform,
                          BaseField, Fields)
 
@@ -34,11 +34,16 @@ class MergePointClouds(LeafSystem):
         X_B = plant.EvalBodyPoseInWorld(context, bin_body)
         margin = 0.001  # only because simulation is perfect!
         # TODO: change if we change bin size/location
-        a = X_B.multiply([0, 0, margin])
-        b = X_B.multiply([10, 10, 10])
+        a = X_B.multiply([-.22+margin, -.29+margin, 0.015+margin])
+        b = X_B.multiply([.22-margin, .29-0.025-margin, 0.5])
         self._crop_lower = np.minimum(a, b)
         self._crop_upper = np.maximum(a, b)
-
+        print("CROP", self._crop_lower.shape)
+        
+        meshcat.SetLineSegments(
+            "/cropping_box",  self._crop_lower[:, None],
+             self._crop_upper[:, None])
+        
         self._camera_body_indices = camera_body_indices
 
     def filterPointCloudByColor(self, cloud):
@@ -71,8 +76,8 @@ class MergePointClouds(LeafSystem):
             cloud = self.get_input_port(
                 port).Eval(context)
 
-            self.filterPointCloudByColor(cloud)
-            # pcd.append(cloud.Crop(self._crop_lower, self._crop_upper))
+            # self.filterPointCloudByColor(cloud)
+            cloud = cloud.Crop(self._crop_lower, self._crop_upper)
             # print(pcd[-1].fields())
             pcd.append(cloud)
             pcd[i].EstimateNormals(radius=0.1, num_closest=30)
@@ -85,5 +90,5 @@ class MergePointClouds(LeafSystem):
         down_sampled_pcd = merged_pcd.VoxelizedDownSample(voxel_size=0.005)
         if True:
             self._meshcat.SetObject(
-                "/down_sampled_pcd", down_sampled_pcd, point_size=0.005)
+                "/down_sampled_pcd", down_sampled_pcd, point_size=0.005, rgba=Rgba(0.1, 1., 1.))
         output.set_value(down_sampled_pcd)

@@ -79,20 +79,24 @@ def GraspCandidateCost(diagram,
     #     return cost
 
     # Check collisions between the gripper and the point cloud
-    margin = 0.0  # must be smaller than the margin used in the point cloud preprocessing.
-    for i in range(cloud.size()):
-        # Only check points close to the target bc points from the other boxes dont matter
-        if np.linalg.norm(cloud.xyz(i) - target_xyz) > 0.2:
-            continue
-        distances = query_object.ComputeSignedDistanceToPoint(cloud.xyz(i),
-                                                              threshold=margin)
-        if distances:
-            cost = np.inf
-            if verbose:
-                print("Gripper is colliding with the point cloud!\n")
-                print(f"cost: {cost}")
-            return cost
-
+    # margin = 0.001   # must be smaller than the margin used in the point cloud preprocessing.
+    # count = 0
+    # for i in range(cloud.size()):
+    #     # # Only check points close to the target bc points from the other boxes dont matter
+    #     # if np.linalg.norm(cloud.xyz(i) - target_xyz) > 0.2:
+    #     #     continue
+    #     distances = query_object.ComputeSignedDistanceToPoint(cloud.xyz(i),
+    #                                                           threshold=margin)
+    #     if distances:
+    #         cost = np.inf
+    #         count+=1
+            
+    # if cost == np.inf:
+    #     if verbose:
+    #             print("Gripper is colliding with the point cloud!", count, "times", "out of", cloud.size(), "points")
+    #             print(f"cost: {cost}")
+    #     return cost
+    
     n_GC = X_GW.rotation().multiply(cloud.normals()[:,indices])
 
     # Penalize deviation of the gripper from vertical.

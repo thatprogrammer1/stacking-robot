@@ -81,7 +81,7 @@ class GraspSelector(LeafSystem):
         X_Gs = []
         # TODO(russt): Take the randomness from an input port, and re-enable
         # caching.
-        for i in range(100):
+        for i in range(1000):
             cost, X_G = GenerateAntipodalGraspCandidate(
                 self._internal_model, self._internal_model_context,
                 cloud, self._rng)

@@ -56,13 +56,28 @@ class LabelImageToPointCloud(LeafSystem):
         # label_image is 480 x 640 x 1
         label_image = self.get_input_port(self._label_port).Eval(context)
         color_image = self.get_input_port(self._color_port).Eval(context)
+        
         camera_pose = self.get_input_port(self._camera_pose_port).Eval(context)
         camera_info = self._camera_info
-        forbidden = []
-        if self._model_labels != None:
-            forbidden.append(self._model_labels['iiwa'])
-            forbidden.append(self._model_labels['wsg'])
 
+        # (ANI) Vectorized this loop into code below
+        # for v in range(height):
+        #     for u in range(width):
+        #         # if label_image.at(u, v)[0] in forbidden:
+        #         #     continue
+        #         z = depth_image.at(u, v)[0]
+        #         # we may need to do a check for kTooClose or kTooFar,
+        #         # but i can't find what the values are in code
+        #         x = z * (u - cx) * fx_inv
+        #         y = z * (v - cy) * fy_inv
+        #         pt = X_PC @ np.array([x, y, z])
+        #         # tmp_res.append((pt, color_image.at(u, v)[0:3]))
+        #         # This is a hack to encode the labels into the colors. The above is the correct code for colors
+        #         # TODO: remove this and actually implement color segmentation
+        #         tmp_res.append((pt, label_image.at(u, v)[0]))
+
+        mask = np.logical_and(label_image.data[:, :, 0] != self._model_labels['iiwa'], label_image.data[:, :, 0] != self._model_labels['wsg'])
+        mask = mask.flatten()
         # Copied from depth_image_to_point_cloud.cc::DoConvert
         height = depth_image.height()
         width = depth_image.width()
@@ -71,27 +86,22 @@ class LabelImageToPointCloud(LeafSystem):
         fx_inv = 1 / camera_info.focal_x()
         fy_inv = 1 / camera_info.focal_y()
         X_PC = camera_pose
-        tmp_res = []
-        # this loop is slow, maybe we can vectorize it?
-        for v in range(height):
-            for u in range(width):
-                if label_image.at(u, v)[0] in forbidden:
-                    continue
-                z = depth_image.at(u, v)[0]
-                # we may need to do a check for kTooClose or kTooFar,
-                # but i can't find what the values are in code
-                x = z * (u - cx) * fx_inv
-                y = z * (v - cy) * fy_inv
-                pt = X_PC @ np.array([x, y, z])
-                # tmp_res.append((pt, color_image.at(u, v)[0:3]))
-                # This is a hack to encode the labels into the colors. The above is the correct code for colors
-                # TODO: remove this and actually implement color segmentation
-                tmp_res.append((pt, label_image.at(u, v)[0]))
-        res = PointCloud(len(tmp_res), Fields(
+        # Nompy magic to make indexing arrays
+        u = np.tile(np.arange(width), (height, 1)).flatten()[mask]
+        v = np.tile(np.arange(height), (width, 1)).T.flatten()[mask]
+
+        z = depth_image.data[:, :, 0].flatten()[mask]
+        x = z * (u - cx) * fx_inv
+        y = z * (v - cy) * fy_inv
+        
+        # filtered_colors = color_image.data.reshape(height*width, -1)[mask, 0:3]
+        filtered_colors = np.tile(label_image.data.reshape(height*width, -1)[mask, :], (1,3))        
+        
+        res = PointCloud(len(x), Fields(
             BaseField.kXYZs | BaseField.kRGBs))
         xyzs = res.mutable_xyzs()
         colors = res.mutable_rgbs()
-        for i in range(len(tmp_res)):
-            xyzs[:, i] = tmp_res[i][0]
-            colors[:, i] = tmp_res[i][1]
+        xyzs[:] = X_PC @ np.array([x,y,z])
+        colors[:] = filtered_colors.T
+
         output.set_value(res)

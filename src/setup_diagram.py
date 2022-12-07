@@ -87,7 +87,7 @@ directives:
                                    time_step=0.001,
                                    package_xmls=[os.path.join(os.path.dirname(
                                        os.path.realpath(__file__)), "models/package.xml")],
-                                   disable_segmentation=False
+                                   disable_cheat_segmentation=True
                                    )
 
 

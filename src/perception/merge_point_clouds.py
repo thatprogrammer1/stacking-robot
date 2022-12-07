@@ -38,11 +38,11 @@ class MergePointClouds(LeafSystem):
         print(a, b)
         self._crop_lower = np.minimum(a, b)
         self._crop_upper = np.maximum(a, b)
-        
+
         # Draws space diagonal of cropping box for visualization
         meshcat.SetLineSegments(
             "/cropping_box",  self._crop_lower[:, None],
-             self._crop_upper[:, None])
+            self._crop_upper[:, None])
 
         self._camera_body_indices = camera_body_indices
 

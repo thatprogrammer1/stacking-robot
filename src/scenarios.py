@@ -259,7 +259,7 @@ def AddRgbdSensors(builder,
                    depth_camera=None,
                    renderer=None,
                    model_labels=None,
-                   disable_segmentation=False):
+                   disable_cheat_segmentation=False):
     """
     Adds a RgbdSensor to the first body in the plant for every model instance
     with a name starting with model_instance_prefix.  If depth_camera is None,
@@ -335,7 +335,7 @@ def AddRgbdSensors(builder,
                 builder.Connect(plant.get_body_poses_output_port(),
                                 camera_pose.get_input_port())
                 # Add a system to convert the camera output into a point cloud
-                if disable_segmentation:
+                if disable_cheat_segmentation:
                     to_point_cloud = builder.AddSystem(
                         DepthImageToPointCloud(camera_info=rgbd.depth_camera_info(),
                                                fields=BaseField.kXYZs
@@ -501,7 +501,7 @@ def MakeManipulationStation(callback, model_directives=None,
                             wsg_prefix="wsg",
                             camera_prefix="camera",
                             package_xmls=[],
-                            disable_segmentation=True):
+                            disable_cheat_segmentation=True):
     """
     Creates a manipulation station system, which is a sub-diagram containing:
       - A MultibodyPlant with populated via the Parser from the
@@ -565,14 +565,14 @@ def MakeManipulationStation(callback, model_directives=None,
         # plant.GetModel
         model_labels[model_instance_name] = 100+i
         for body_ind in plant.GetBodyIndices(model_instance):
-            print(model_instance_name)
-            print(body_ind)
+            # print(model_instance_name)
+            # print(body_ind)
             frame_id = plant.GetBodyFrameIdOrThrow(body_ind)
             geometry_ids = inspector.GetGeometries(frame_id, Role.kPerception)
             for geom_id in geometry_ids:
                 inspector.GetPerceptionProperties(geom_id).UpdateProperty(
                     "label", "id", RenderLabel(model_labels[model_instance_name]))
-    print("Labels: ", model_labels)
+    # print("Labels: ", model_labels)
     plant.Finalize()
 
     for i in range(plant.num_model_instances()):
@@ -689,7 +689,7 @@ def MakeManipulationStation(callback, model_directives=None,
                    scene_graph,
                    model_instance_prefix=camera_prefix,
                    model_labels=model_labels,
-                   disable_segmentation=disable_segmentation)
+                   disable_cheat_segmentation=disable_cheat_segmentation)
 
     # Export "cheat" ports.
     builder.ExportOutput(scene_graph.get_query_output_port(), "query_object")

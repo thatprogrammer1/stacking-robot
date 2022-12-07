@@ -26,14 +26,14 @@ def clutter_clearing_demo(seed=None):
     generator = RandomGenerator(rs.randint(1000))  # this is for c++
     diagram, plant, visualizer = BuildStackingDiagram(meshcat, seed)
 
-    for idx in plant.GetJointIndices(plant.GetModelInstanceByName("iiwa")):
-        print(plant.get_joint(idx).name())
-        print(plant.get_joint(idx).parent_body().name())
-        print(plant.get_joint(idx).child_body().name())
-        if plant.get_joint(idx).name().startswith("iiwa_joint_"):
-            print(plant.get_joint(idx).revolute_axis())
-    joint = plant.GetJointByName("iiwa_joint_1")
-    print(joint.parent_body().name())
+    # for idx in plant.GetJointIndices(plant.GetModelInstanceByName("iiwa")):
+    #     print(plant.get_joint(idx).name())
+    #     print(plant.get_joint(idx).parent_body().name())
+    #     print(plant.get_joint(idx).child_body().name())
+    #     if plant.get_joint(idx).name().startswith("iiwa_joint_"):
+    #         print(plant.get_joint(idx).revolute_axis())
+    # joint = plant.GetJointByName("iiwa_joint_1")
+    # print(joint.parent_body().name())
 
     simulator = Simulator(diagram)
     context = simulator.get_context()

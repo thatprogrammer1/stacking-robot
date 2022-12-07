@@ -56,7 +56,7 @@ class LabelImageToPointCloud(LeafSystem):
         # label_image is 480 x 640 x 1
         label_image = self.get_input_port(self._label_port).Eval(context)
         color_image = self.get_input_port(self._color_port).Eval(context)
-        
+
         camera_pose = self.get_input_port(self._camera_pose_port).Eval(context)
         camera_info = self._camera_info
 
@@ -75,14 +75,14 @@ class LabelImageToPointCloud(LeafSystem):
         z = depth_image.data[:, :, 0].flatten()
         x = z * (u - cx) * fx_inv
         y = z * (v - cy) * fy_inv
-        
-        filtered_colors = color_image.data.reshape(height*width, -1)[:,0:3]
-        
+
+        filtered_colors = color_image.data.reshape(height*width, -1)[:, 0:3]
+
         res = PointCloud(len(x), Fields(
             BaseField.kXYZs | BaseField.kRGBs))
         xyzs = res.mutable_xyzs()
         colors = res.mutable_rgbs()
-        xyzs[:] = X_PC @ np.array([x,y,z])
+        xyzs[:] = X_PC @ np.array([x, y, z])
         colors[:] = filtered_colors.T
 
         output.set_value(res)

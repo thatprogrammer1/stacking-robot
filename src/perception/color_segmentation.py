@@ -37,6 +37,9 @@ class ColorSegmentation(LeafSystem):
         label_map = {label: ([], [], []) for label in range(np.max(labels)+1)}
 
         for label, point, color, normal in zip(labels, pcd.xyzs().T, pcd.rgbs().T, pcd.normals().T):
+            # Noise label
+            if label==-1:
+                continue
             label_map[label][0].append(point)
             label_map[label][1].append(color)
             label_map[label][2].append(normal)

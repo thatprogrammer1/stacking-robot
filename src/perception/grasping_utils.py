@@ -45,7 +45,10 @@ def GraspCandidateCost(diagram,
     # Transform cloud into gripper frame
     X_GW = X_G.inverse()
     p_GC = X_GW @ cloud.xyzs()
-
+    
+    centroid = np.mean(p_GC, axis=1)
+    # print("Grasping xyzs shape", p_GC.shape)
+    # print("Centroid", centroid)
     # Crop to a region inside of the finger box.
     crop_min = [-.05, 0.1, -0.00625]
     crop_max = [.05, 0.1125, 0.00625]
@@ -102,6 +105,11 @@ def GraspCandidateCost(diagram,
     # Penalize deviation of the gripper from vertical.
     # weight * -dot([0, 0, -1], R_G * [0, 1, 0]) = weight * R_G[2,1]
     cost = 20.0*X_G.rotation().matrix()[2, 1]
+    # print("Rot loss", 20.0*X_G.rotation().matrix()[2, 1])
+    
+    # Penalize picking points farr from center of mass
+    # cost+= 40.0 * np.linalg.norm(target_xyz - centroid)
+    # print("Centroid loss",  40.0 * np.linalg.norm(target_xyz - centroid))
 
     # Reward sum |dot product of normals with gripper x|^2
     cost -= np.sum(n_GC[0,:]**2)

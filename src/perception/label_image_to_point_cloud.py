@@ -94,8 +94,8 @@ class LabelImageToPointCloud(LeafSystem):
         x = z * (u - cx) * fx_inv
         y = z * (v - cy) * fy_inv
         
-        # filtered_colors = color_image.data.reshape(height*width, -1)[mask, 0:3]
-        filtered_colors = np.tile(label_image.data.reshape(height*width, -1)[mask, :], (1,3))        
+        filtered_colors = color_image.data.reshape(height*width, -1)[mask, 0:3]
+        # filtered_colors = np.tile(label_image.data.reshape(height*width, -1)[mask, :], (1,3))        
         
         res = PointCloud(len(x), Fields(
             BaseField.kXYZs | BaseField.kRGBs))

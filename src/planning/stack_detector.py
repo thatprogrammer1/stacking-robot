@@ -41,7 +41,7 @@ class StackDetector(LeafSystem):
             cloud.mutable_xyzs()[:] = stack_points
             cloud.mutable_rgbs()[:] = np.array(
                 [[255, 0, 0]]*num_points).T
-            self._meshcat.SetObject("/stack_points", cloud, point_size=0.005)
+            # self._meshcat.SetObject("/stack_points", cloud, point_size=0.005)
 
         # next stack position = at height of highest point and at center of stack cylinder laterally
         if num_points > 0:

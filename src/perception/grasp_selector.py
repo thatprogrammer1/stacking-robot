@@ -3,13 +3,14 @@ from typing import List
 from collections import namedtuple
 import numpy as np
 from pydrake.all import (AbstractValue, AddMultibodyPlantSceneGraph, Concatenate, DiagramBuilder, LeafSystem, Parser,
-                         PointCloud,
+                         PointCloud, Rgba,
                          RigidTransform,
                          RollPitchYaw, ImageLabel16I, Fields, BaseField)
 
 from manipulation import FindResource, running_as_notebook
 from perception.grasping_utils import GenerateAntipodalGraspCandidate
 from manipulation.scenarios import (AddPackagePaths)
+from sklearn.cluster import dbscan
 
 
 # Another diagram for the objects the robot "knows about": gripper, cameras, bins.  Think of this as the model in the robot's head.
@@ -49,34 +50,52 @@ class GraspSelector(LeafSystem):
 
     def SelectGrasp(self, context, output):
         # TODO: use the segmented clouds to do smarter grasp selection
-        segmented_clouds = self.get_input_port(
-            self._segmented_clouds_index).Eval(context)
+        # segmented_clouds = self.get_input_port(
+        #     self._segmented_clouds_index).Eval(context)
         down_sampled_pcd = self.get_input_port(
             self._point_cloud_index).Eval(context)
-
+        
         # remove points from stack cylinder
         # hack to keep normals of points that remain
         points = np.array(
             [down_sampled_pcd.xyzs(), down_sampled_pcd.normals()])
         grasp_points = points[:, :, np.linalg.norm(
             points[0, :2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) > self._stacking_zone_radius]
+        print("Grasp points", grasp_points.shape)
+        
+        # Segments points outside of stacking cylinder and picks first label
+        core, labels = dbscan(grasp_points[0].T, eps=0.01)
+        print("DBSCAN Result by xyzs", np.max(labels), np.min(labels))
+        grasp_points = grasp_points[:, :, labels==0]
+        
+        # Segment by normals
+        core, labels = dbscan(grasp_points[1].T, eps=0.1)
+        print("DBSCAN for normals", np.max(labels), labels)
+        # grasp_points = grasp_points[:, :, labels==0]
+        for i in range(np.max(labels)):
+            print("Num points on face", i, np.sum(labels==i))
+
+        
+        
         num_points = grasp_points.shape[2]
         cloud = PointCloud(num_points,
                            Fields(BaseField.kXYZs | BaseField.kRGBs | BaseField.kNormals))
+        
         cloud.mutable_xyzs()[:] = grasp_points[0]
         cloud.mutable_rgbs()[:] = np.array(
             [[0, 255, 0]]*num_points).T
         cloud.mutable_normals()[:] = grasp_points[1]
 
         if True:
+            pass
             # Visualize how the points are segmented
-            for i in range(len(segmented_clouds)):
-                self._meshcat.SetObject(
-                    f"/segmented_cloud_{i}", segmented_clouds[i], point_size=0.005)
+            # for i in range(len(segmented_clouds)):
+            #     self._meshcat.SetObject(
+            #         f"/segmented_cloud_{i}", segmented_clouds[i], point_size=0.005)
 
             # Visualize what points are candidates for grasp selection
             self._meshcat.SetObject(
-                "/grasp_selection_points", cloud, point_size=0.005)
+                "/grasp_selection_points", cloud, point_size=0.005, rgba = Rgba(0.1, 1., 0.1))
         costs = []
         X_Gs = []
         # TODO(russt): Take the randomness from an input port, and re-enable

@@ -2,6 +2,7 @@
 import numpy as np
 from pydrake.all import (AbstractValue, LeafSystem, PointCloud,
                          Fields, BaseField)
+from sklearn.cluster import dbscan
 
 
 class ColorSegmentation(LeafSystem):
@@ -29,13 +30,16 @@ class ColorSegmentation(LeafSystem):
     def SegmentPoints(self, context, output):
         pcd = self.get_input_port(
             self._point_cloud_index).Eval(context)
+        corepoints, labels = dbscan(pcd.xyzs().T, eps=0.01)
+        print("# of DBSCAN regions", np.max(labels)+1)
+        
         segmented_points = []
-        label_map = {color[0]: ([], [], []) for color in pcd.rgbs().T}
+        label_map = {label: ([], [], []) for label in range(np.max(labels)+1)}
 
-        for point, color, normal in zip(pcd.xyzs().T, pcd.rgbs().T, pcd.normals().T):
-            label_map[color[0]][0].append(point)
-            label_map[color[0]][1].append(color)
-            label_map[color[0]][2].append(normal)
+        for label, point, color, normal in zip(labels, pcd.xyzs().T, pcd.rgbs().T, pcd.normals().T):
+            label_map[label][0].append(point)
+            label_map[label][1].append(color)
+            label_map[label][2].append(normal)
         for color in label_map:
             val = [np.array(a).T for a in label_map[color]]
             new_pcd = PointCloud(val[0].shape[1], Fields(
@@ -47,4 +51,5 @@ class ColorSegmentation(LeafSystem):
             new_pcd.mutable_normals()[:] = val[2]
             segmented_points.append(new_pcd)
         print("Segmentation group keys:", label_map.keys())
+        print("Points per segmentation group", [x.size() for x in segmented_points])
         output.set_value(segmented_points)

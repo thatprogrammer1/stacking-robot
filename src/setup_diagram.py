@@ -64,18 +64,18 @@ directives:
     file: package://stacking/clutter_w_cameras.dmd.yaml
 """
 
-    for i in range(2):
-        model_directives += f"""
-- add_model:
-    name: brick{i}
-    file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
-"""
+#     for i in range(2):
+#         model_directives += f"""
+# - add_model:
+#     name: brick{i}
+#     file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
+# """
 
     for i in range(2):
         model_directives += f"""
 - add_model:
     name: triangle{i}
-    file: package://stacking/triangle_prism.sdf
+    file: package://stacking/pent.sdf
 """
 
 
@@ -129,7 +129,7 @@ def BuildStaticDiagram(meshcat):
 
     meshcat_param = MeshcatVisualizerParams()
     """ kProximity for collision geometry and kIllustration for visual geometry """
-    # meshcat_param.role = Role.kIllustration
+    meshcat_param.role = Role.kIllustration
     meshcat_param.role = Role.kProximity
 
     MeshcatVisualizer.AddToBuilder(

@@ -1,5 +1,3 @@
-
-
 from typing import List
 from collections import namedtuple
 import numpy as np
@@ -12,8 +10,12 @@ CameraPorts = namedtuple('CameraPorts', 'cloud_index, label_index')
 
 class LabelImageToPointCloud(LeafSystem):
     """
-    Generate PointCloud from camera image. 
-    This code also filters out the iiwa by cheating and using labels.
+    This system is no longer used, but still works.
+
+    Generate PointCloud by using the pinhole camera model,
+     and set the colors to be the labels from the label_image camera port. 
+    This enables simple segmentation by filtering by the colors. 
+    This code filters out the iiwa and wsg by using the `model_labels` passed.
 
     Input ports:
     - label_image
@@ -60,6 +62,9 @@ class LabelImageToPointCloud(LeafSystem):
         camera_pose = self.get_input_port(self._camera_pose_port).Eval(context)
         camera_info = self._camera_info
 
+        mask = np.logical_and(label_image.data[:, :, 0] != self._model_labels['iiwa'],
+                              label_image.data[:, :, 0] != self._model_labels['wsg'])
+        mask = mask.flatten()
         # Copied from depth_image_to_point_cloud.cc::DoConvert
         height = depth_image.height()
         width = depth_image.width()
@@ -69,14 +74,16 @@ class LabelImageToPointCloud(LeafSystem):
         fy_inv = 1 / camera_info.focal_y()
         X_PC = camera_pose
         # Nompy magic to make indexing arrays
-        u = np.tile(np.arange(width), (height, 1)).flatten()
-        v = np.tile(np.arange(height), (width, 1)).T.flatten()
+        u = np.tile(np.arange(width), (height, 1)).flatten()[mask]
+        v = np.tile(np.arange(height), (width, 1)).T.flatten()[mask]
 
-        z = depth_image.data[:, :, 0].flatten()
+        z = depth_image.data[:, :, 0].flatten()[mask]
         x = z * (u - cx) * fx_inv
         y = z * (v - cy) * fy_inv
 
-        filtered_colors = color_image.data.reshape(height*width, -1)[:, 0:3]
+        # filtered_colors = color_image.data.reshape(height*width, -1)[mask, 0:3]
+        filtered_colors = np.tile(label_image.data.reshape(
+            height*width, -1)[mask, :], (1, 3))
 
         res = PointCloud(len(x), Fields(
             BaseField.kXYZs | BaseField.kRGBs))

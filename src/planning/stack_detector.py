@@ -35,7 +35,7 @@ class StackDetector(LeafSystem):
             points[:2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) <= self._stacking_zone_radius]
         num_points = stack_points.shape[1]
 
-        if True:
+        if False:
             cloud = PointCloud(stack_points.shape[1],
                                Fields(BaseField.kXYZs | BaseField.kRGBs))
             cloud.mutable_xyzs()[:] = stack_points

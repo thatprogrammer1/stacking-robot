@@ -60,7 +60,7 @@ class GraspSelector(LeafSystem):
 
         print("Num of segmented clouds", len(segmented_clouds))
 
-        if True:
+        if False:
             # Visualize how the points are segmented
             for i in range(len(segmented_clouds)):
                 self._meshcat.SetObject(
@@ -116,7 +116,7 @@ class GraspSelector(LeafSystem):
 
         print("Num of segmented clouds", len(segmented_clouds))
 
-        if True:
+        if False:
             # Visualize how the points are segmented
             for i in range(len(segmented_clouds)):
                 self._meshcat.SetObject(

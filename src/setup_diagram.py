@@ -64,17 +64,17 @@ directives:
     file: package://stacking/clutter_w_cameras.dmd.yaml
 """
 
-#     for i in range(2):
-#         model_directives += f"""
-# - add_model:
-#     name: brick{i}
-#     file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
-# """
+    for i in range(2):
+        model_directives += f"""
+- add_model:
+    name: brick{i}
+    file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
+"""
 
     for i in range(2):
         model_directives += f"""
 - add_model:
-    name: triangle{i}
+    name: pentagon{i}
     file: package://stacking/pent.sdf
 """
 

@@ -65,15 +65,15 @@ directives:
 """
 
     colors = ["blue", "green", "cyan", "red", "yellow"]
-
+    random.shuffle(colors)
     for i in range(2):
         model_directives += f"""
 - add_model:
     name: brick{i}
-    file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
+    file: package://stacking/brick/brick_{colors[i]}.sdf
 """
     
-    for i in range(2):
+    for i in range(2,4):
             model_directives += f"""
 - add_model:
     name: pentagon{i}

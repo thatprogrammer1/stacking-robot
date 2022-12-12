@@ -29,6 +29,7 @@ class PickState:
     pose_trajectory: PiecewisePose
     wsg_trajectory: PiecewisePolynomial
     target_stack_point: np.ndarray
+    Xpick: RigidTransform
 
 
 @dataclass
@@ -37,6 +38,7 @@ class COMPhase1State:
     start_time: float
     problem: COMProblem
     target_stack_point: np.ndarray
+    Xpick: RigidTransform
 
 
 @dataclass
@@ -45,6 +47,7 @@ class TwistState:
     wsg_trajectory: PiecewisePolynomial
     problem: COMProblem
     target_stack_point: np.ndarray
+    Xpick: RigidTransform
 
 
 @dataclass
@@ -53,6 +56,7 @@ class COMPhase2State:
     start_time: float
     problem: COMProblem
     target_stack_point: np.ndarray
+    Xpick: RigidTransform
 
 
 @dataclass
@@ -115,7 +119,6 @@ class StackingPlanner(LeafSystem):
 
         self.DeclarePeriodicUnrestrictedUpdateEvent(0.1, 0.0, self.Update)
 
-        self.pickHeight = 0
         # for debugging
         self.meshcat = meshcat
 
@@ -148,13 +151,17 @@ class StackingPlanner(LeafSystem):
         elif isinstance(mode_val, PickState):
             pose_trajectory = mode_val.pose_trajectory
             target_stack_point = mode_val.target_stack_point
+            Xpick = mode_val.Xpick
+
             if not pose_trajectory.is_time_in_range(current_time):
                 mode.set_value(COMPhase1State(
-                    X_G, current_time, COMProblem(), target_stack_point))
+                    X_G, current_time, COMProblem(), target_stack_point, Xpick))
         elif isinstance(mode_val, COMPhase1State):
             start_time = mode_val.start_time
             problem = mode_val.problem
             target_stack_point = mode_val.target_stack_point
+            Xpick = mode_val.Xpick
+
             if wsg_state[0] < 0.01:
                 mode.set_value(SettleState(
                     X_G,
@@ -168,19 +175,24 @@ class StackingPlanner(LeafSystem):
                 mode.set_value(TwistState(
                     *MakeGripperTrajectories(MakeTwistFrames(X_G, current_time)),
                     problem=problem,
-                    target_stack_point=target_stack_point
+                    target_stack_point=target_stack_point,
+                    Xpick=Xpick
                 ))
         elif isinstance(mode_val, TwistState):
             pose_trajectory = mode_val.pose_trajectory
             problem = mode_val.problem
             target_stack_point = mode_val.target_stack_point
+            Xpick = mode_val.Xpick
+
             if not pose_trajectory.is_time_in_range(current_time):
                 mode.set_value(COMPhase2State(
-                    X_G, current_time, problem, target_stack_point))
+                    X_G, current_time, problem, target_stack_point, Xpick))
         elif isinstance(mode_val, COMPhase2State):
             start_time = mode_val.start_time
             problem = mode_val.problem
             target_stack_point = mode_val.target_stack_point
+            Xpick = mode_val.Xpick
+
             if current_time > start_time + 2.0:
                 external_torques = self.get_input_port(
                     self._external_torque_index).Eval(context)
@@ -191,11 +203,14 @@ class StackingPlanner(LeafSystem):
                     path="/com", shape=Sphere(0.01), rgba=Rgba(0.19, 0.72, 0.27, 1.0))
                 self._meshcat.SetTransform(
                     path="/com", X_ParentPath=RigidTransform(X_G) @ RigidTransform(com))
-                height_offset = np.array([0, 0, 0.1])
-                R_G = RollPitchYaw(-np.pi / 2, 0, np.pi / 2)
+                R_G = Xpick.rotation()
+                pick_height = Xpick.translation()[2]
+                place_translation = np.zeros((3,))
+                place_translation[:2] = -(R_G @ com)[:2]
+                place_translation[2] = pick_height
                 place_pose = RigidTransform(
                     R_G,
-                    target_stack_point + height_offset - R_G.ToRotationMatrix() @ com)
+                    target_stack_point + place_translation)
                 AddMeshcatTriad(self._meshcat, "place", X_PT=place_pose)
                 mode.set_value(PlaceState(
                     *MakeGripperTrajectories(MakePlaceFrames(X_G, place_pose, current_time)),
@@ -222,8 +237,6 @@ class StackingPlanner(LeafSystem):
         else:
             raise RuntimeError("Could not find a valid grasp after 5 attempts")
 
-
-        self.pickHeight = height
         height_offset = np.array([0, 0, 0.3])
         stack_position = self.get_input_port(
             self._stack_position_index).Eval(context)
@@ -241,11 +254,11 @@ class StackingPlanner(LeafSystem):
             path="/stack", shape=Sphere(0.01), rgba=Rgba(0.21, 0.38, 0.79, 1.0))
         self._meshcat.SetTransform(
             path="/stack", X_ParentPath=RigidTransform(stack_position))
-        height_offset = np.array([0, 0, 0.1])
 
-        print(f"Planned a pick at time {context.get_time()}.", "with height", height)
+        print(
+            f"Planned a pick at time {context.get_time()}.", "with height", height)
         mode.set_value(PickState(*MakeGripperTrajectories(frames),
-                       target_stack_point=stack_position))
+                       target_stack_point=stack_position, Xpick=pick_pose))
 
     def CalcGripperPose(self, context, output):
         mode = context.get_abstract_state(int(self._mode_index)).get_value()

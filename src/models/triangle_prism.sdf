@@ -1,0 +1,89 @@
+<sdf xmlns:drake="drake.mit.edu" version="1.5">
+  <model name="triangle_prism">
+    <link name="triangle_prism_body_link">
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>7.0995E-01</mass>
+        <inertia>
+          <ixx>8.0638E-04</ixx>
+          <ixy>1.4117E-20</ixy>
+          <ixz>-0.0000E+00</ixz>
+          <iyy>5.0017E-04</iyy>
+          <iyz>-0.0000E+00</iyz>
+          <izz>8.0637E-04</izz>
+        </inertia>
+      </inertial>
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>triangle_prism.obj</uri>
+            <scale>1.0000E-02 1.0000E-02 1.0000E-02</scale>
+          </mesh>
+        </geometry>
+      </visual>
+      <collision name="collision_0000">
+        <geometry>
+          <mesh>
+            <uri>triangle_prism_parts/triangle_prism_convex_piece_000.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+
+      <collision name="point_collision1">
+        <pose>0.045973 -0.048484 0 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>1e-4</radius>
+          </sphere>
+        </geometry>
+      </collision>
+
+      <collision name="point_collision2">
+        <pose>0 -0.048484 0.079628 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>1e-4</radius>
+          </sphere>
+        </geometry>
+      </collision>
+
+      <collision name="point_collision3">
+        <pose>-0.045973 -0.048484 0 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>1e-4</radius>
+          </sphere>
+        </geometry>
+      </collision>
+
+      <collision name="point_collision4">
+        <pose>0 0.048484 0.079628 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>1e-4</radius>
+          </sphere>
+        </geometry>
+      </collision>
+
+      <collision name="point_collision5">
+        <pose>-0.045973 0.048484 0 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>1e-4</radius>
+          </sphere>
+        </geometry>
+      </collision>
+
+      <collision name="point_collision6">
+        <pose>0.045973 0.048484 0 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>1e-4</radius>
+          </sphere>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>

@@ -139,15 +139,7 @@ class StackingPlanner(LeafSystem):
                 self.StartPicking(context, mode)
         elif (isinstance(mode_val, PickState) or isinstance(mode_val, TwistState) or isinstance(mode_val, PlaceState)) and np.linalg.norm(mode_val.pose_trajectory.GetPose(current_time).translation() - X_G.translation()) > 0.2:
             print("Replanning due to large tracking error.")
-            q = self.get_input_port(
-                self._iiwa_position_index).Eval(context)
-            home = copy(context.get_discrete_state(
-                self._home_index).get_value())
-            home[0] = q[0]  # Safer to not reset the first joint.
-            mode.set_value(GoHomeState(
-                PiecewisePolynomial.FirstOrderHold(
-                    [current_time, current_time + 5.0], np.vstack((q, home)).T)
-            ))
+            self.GoHome(context, mode, current_time)
         elif isinstance(mode_val, PickState):
             pose_trajectory = mode_val.pose_trajectory
             target_stack_point = mode_val.target_stack_point
@@ -219,11 +211,23 @@ class StackingPlanner(LeafSystem):
         elif isinstance(mode_val, PlaceState):
             pose_trajectory = mode_val.pose_trajectory
             if not pose_trajectory.is_time_in_range(current_time):
-                self.StartPicking(context, mode)
+                print("Going home after placing")
+                self.GoHome(context, mode, current_time)
         elif isinstance(mode_val, GoHomeState):
             joint_trajectory = mode_val.joint_trajectory
             if not joint_trajectory.is_time_in_range(current_time):
                 self.StartPicking(context, mode)
+
+    def GoHome(self, context, mode, current_time):
+        q = self.get_input_port(
+            self._iiwa_position_index).Eval(context)
+        home = copy(context.get_discrete_state(
+            self._home_index).get_value())
+        home[0] = q[0]  # Safer to not reset the first joint.
+        mode.set_value(GoHomeState(
+            PiecewisePolynomial.FirstOrderHold(
+                [current_time, current_time + 5.0], np.vstack((q, home)).T)
+        ))
 
     def StartPicking(self, context, mode):
         initial_pose = self.get_input_port(self._body_poses_index).Eval(context)[

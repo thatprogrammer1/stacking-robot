@@ -162,8 +162,27 @@ def GenerateAntipodalGraspCandidate(diagram,
     p_WS = cloud.xyz(index)
     n_WS = cloud.normal(index)
 
+    def normal_up(n_WS):
+        return abs(n_WS[2]) > abs(n_WS[0]) and abs(n_WS[2]) > abs(n_WS[1])
+    
+    def isEdge(p_WS):
+        l = []
+        # print(cloud.xyzs().shape, p_WS[:, None].shape)
+        arr = cloud.xyzs() - p_WS[:, None]
+        # print("Arr", arr.shape)
+        arr = np.linalg.norm(arr, axis=0)
+        # print("Normed", arr.shape)
+        arr = np.argsort(arr)
+        prod = 1
+        for i in range(25):
+            for j in range(i+1, 25):
+                norm1 = cloud.normal(arr[i]) 
+                norm2 = cloud.normal(arr[j])
+                prod = min(prod, np.dot(norm1, norm2))
+        return prod < 0.9
+    
     # Don't select top of boxes
-    while abs(n_WS[2]) > abs(n_WS[0]) and abs(n_WS[2]) > abs(n_WS[1]):
+    while normal_up(n_WS) or isEdge(p_WS):
         index = rng.integers(0, cloud.size() - 1)
         p_WS = cloud.xyz(index)
         n_WS = cloud.normal(index)

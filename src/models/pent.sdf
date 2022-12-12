@@ -3,7 +3,7 @@
     <link name="pent_body_link">
       <pose>0 0 0 0 0 0</pose>
       <inertial>
-        <mass>5.1261E-01</mass>
+        <mass>0.028</mass>
         <inertia>
           <ixx>3.2265E-04</ixx>
           <ixy>-8.4196E-11</ixy>

@@ -174,13 +174,16 @@ def BuildStackingDiagram(meshcat, seed):
         stacking_zone_center=np.array([.6, .2]), stacking_zone_radius=.07, meshcat=meshcat))
     builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
                     detector.GetInputPort("merged_pcd"))
-    planner = builder.AddSystem(StackingPlanner(plant, meshcat))
+    planner = builder.AddSystem(StackingPlanner(
+        plant, meshcat, np.array([0.3, 0.0, 0.2])))
     builder.Connect(detector.GetOutputPort("next_stack_position"),
                     planner.GetInputPort("stack_position"))
     builder.Connect(station.GetOutputPort("body_poses"),
                     planner.GetInputPort("body_poses"))
-    builder.Connect(grasp_selector.get_output_port(),
+    builder.Connect(grasp_selector.GetOutputPort("grasp_selection"),
                     planner.GetInputPort("grasp"))
+    builder.Connect(grasp_selector.GetOutputPort("clutter_grasp_selection"),
+                    planner.GetInputPort("grasp_clutter"))
     builder.Connect(station.GetOutputPort("wsg_state_measured"),
                     planner.GetInputPort("wsg_state"))
     builder.Connect(station.GetOutputPort("iiwa_position_measured"),

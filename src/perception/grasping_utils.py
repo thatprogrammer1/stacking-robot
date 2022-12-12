@@ -5,6 +5,7 @@ def GraspCandidateCost(diagram,
                        context,
                        cloud,
                        target_xyz,
+                       target_normal,
                        wsg_body_index=None,
                        plant_system_name="plant",
                        scene_graph_system_name="scene_graph",
@@ -53,7 +54,7 @@ def GraspCandidateCost(diagram,
                       crop_min[1] <= p_GC[1,:], p_GC[1,:] <= crop_max[1],
                       crop_min[2] <= p_GC[2,:], p_GC[2,:] <= crop_max[2]),
                      axis=0)
-
+    # print(np.sum(indices))
     if meshcat_path:
         pc = PointCloud(np.sum(indices))
         pc.mutable_xyzs()[:] = cloud.xyzs()[:, indices]
@@ -79,18 +80,22 @@ def GraspCandidateCost(diagram,
     #     return cost
 
     # Check collisions between the gripper and the point cloud
-    # margin = 0.001   # must be smaller than the margin used in the point cloud preprocessing.
+    margin = 0.001   # must be smaller than the margin used in the point cloud preprocessing.
     # count = 0
-    # for i in range(cloud.size()):
-    #     # # Only check points close to the target bc points from the other boxes dont matter
-    #     # if np.linalg.norm(cloud.xyz(i) - target_xyz) > 0.2:
-    #     #     continue
-    #     distances = query_object.ComputeSignedDistanceToPoint(cloud.xyz(i),
-    #                                                           threshold=margin)
-    #     if distances:
-    #         cost = np.inf
-    #         count+=1
-            
+    cost = 0
+    for i in range(cloud.size()):
+        # # Only check points close to the target bc points from the other boxes dont matter
+        # print(np.dot(cloud.xyz(i) - target_xyz, target_normal)/(np.linalg.norm(cloud.xyz(i) - target_xyz)*np.linalg.norm(target_normal)))
+        if np.dot(cloud.xyz(i) - target_xyz, target_normal)/(np.linalg.norm(cloud.xyz(i) - target_xyz)*np.linalg.norm(target_normal)) < -0.5:
+            # print("Example skipped", cloud.xyz(i), target_xyz, target_normal)
+            # print(np.dot(cloud.xyz(i) - target_xyz, target_normal))
+            continue
+        distances = query_object.ComputeSignedDistanceToPoint(cloud.xyz(i),
+                                                              threshold=margin)
+        if distances:
+            cost += 100
+
+    # print(cost)        
     # if cost == np.inf:
     #     if verbose:
     #             print("Gripper is colliding with the point cloud!", count, "times", "out of", cloud.size(), "points")
@@ -104,10 +109,13 @@ def GraspCandidateCost(diagram,
     cost = 20.0*X_G.rotation().matrix()[2, 1]
 
     # Reward sum |dot product of normals with gripper x|^2
-    cost -= np.sum(n_GC[0,:]**2)
+    cost -= 5*np.sum(n_GC[0,:]**2)
     if verbose:
         print(f"cost: {cost}")
         print(f"normal terms: {n_GC[0,:]**2}")
+
+    # print("Point", target_xyz, "NormaL", target_normal)
+    # print(cost)
     return cost
 
 def GenerateAntipodalGraspCandidate(diagram,
@@ -136,6 +144,7 @@ def GenerateAntipodalGraspCandidate(diagram,
     Returns:
         cost: The grasp cost
         X_G: The grasp candidate
+        point: The xyz of the targeted point in the cloud
     """
     plant = diagram.GetSubsystemByName(plant_system_name)
     plant_context = plant.GetMyMutableContextFromRoot(context)
@@ -167,7 +176,7 @@ def GenerateAntipodalGraspCandidate(diagram,
     y = np.array([0.0, 0.0, -1.0])
     if np.abs(np.dot(y,Gx)) < 1e-6:
         # normal was pointing straight down.  reject this sample.
-        return np.inf, None
+        return np.inf, None, p_WS
 
     Gy = y - np.dot(y,Gx)*Gx
     Gz = np.cross(Gx, Gy)
@@ -177,7 +186,7 @@ def GenerateAntipodalGraspCandidate(diagram,
     # Try orientations from the center out
     min_roll=-np.pi * 0.8
     max_roll=np.pi * 0.8
-    alpha = np.array([0.5, 0.65, 0.35, 0.8, 0.2, 1.0, 0.0])
+    alpha = np.array([0.5, 0.6, 0.4, 0.65, 0.35, 0.7, 0.3, 0.75, 0.25, 0.8, 0.2, 0.95, 0.05, 1.0, 0.0])
     for theta in (min_roll + (max_roll - min_roll)*alpha):
         # Rotate the object in the hand by a random rotation (around the normal).
         R_WG2 = R_WG.multiply(RotationMatrix.MakeXRotation(theta))
@@ -189,9 +198,9 @@ def GenerateAntipodalGraspCandidate(diagram,
         X_G = RigidTransform(R_WG2, p_WG)
         plant.SetFreeBodyPose(plant_context, wsg, X_G)
         # Cost
-        cost = GraspCandidateCost(diagram, context, cloud, p_WS, adjust_X_G=True, verbose=False)
+        cost = GraspCandidateCost(diagram, context, cloud, p_WS, n_WS, adjust_X_G=True, verbose=False)
         X_G = plant.GetFreeBodyPose(plant_context, wsg)
         if np.isfinite(cost):
-            return cost, X_G
+            return cost, X_G, p_WS
 
-    return np.inf, None
+    return np.inf, None, p_WS

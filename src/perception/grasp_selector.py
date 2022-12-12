@@ -40,7 +40,7 @@ class GraspSelector(LeafSystem):
 
         port = self.DeclareAbstractOutputPort(
             "grasp_selection", lambda: AbstractValue.Make(
-                (np.inf, RigidTransform())), self.SelectGrasp)
+                (np.inf, RigidTransform(), np.inf)), self.SelectGrasp)
         port.disable_caching_by_default()
 
         self._internal_model = make_internal_model()
@@ -68,6 +68,8 @@ class GraspSelector(LeafSystem):
             [[0, 255, 0]]*num_points).T
         cloud.mutable_normals()[:] = grasp_points[1]
 
+        print("Num of segmented clouds", len(segmented_clouds))
+
         if True:
             # Visualize how the points are segmented
             for i in range(len(segmented_clouds)):
@@ -79,21 +81,27 @@ class GraspSelector(LeafSystem):
                 "/grasp_selection_points", cloud, point_size=0.005)
         costs = []
         X_Gs = []
+        points = []
         # TODO(russt): Take the randomness from an input port, and re-enable
         # caching.
         for i in range(1000):
-            cost, X_G = GenerateAntipodalGraspCandidate(
+            cost, X_G, target_point = GenerateAntipodalGraspCandidate(
                 self._internal_model, self._internal_model_context,
                 cloud, self._rng)
             if np.isfinite(cost):
                 costs.append(cost)
                 X_Gs.append(X_G)
-
+                points.append(target_point)
+                
         if len(costs) == 0:
             # Didn't find a viable grasp candidate
             X_WG = RigidTransform(RollPitchYaw(-np.pi / 2, 0, np.pi / 2),
                                   [0.5, 0, 0.22])
-            output.set_value((np.inf, X_WG))
+            output.set_value((np.inf, X_WG, 0))
         else:
             best = np.argmin(costs)
-            output.set_value((costs[best], X_Gs[best]))
+            p = points[best]
+            print(p)
+            height_from_ground = p[2]
+            output.set_value((costs[best], X_Gs[best], height_from_ground))
+            

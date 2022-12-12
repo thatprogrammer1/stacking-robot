@@ -115,6 +115,7 @@ class StackingPlanner(LeafSystem):
 
         self.DeclarePeriodicUnrestrictedUpdateEvent(0.1, 0.0, self.Update)
 
+        self.pickHeight = 0
         # for debugging
         self.meshcat = meshcat
 
@@ -214,13 +215,15 @@ class StackingPlanner(LeafSystem):
             int(self._gripper_body_index)]
         pick_pose = None
         for _ in range(5):
-            cost, pick_pose = self.get_input_port(
+            cost, pick_pose, height = self.get_input_port(
                 self._grasp_index).Eval(context)
             if not np.isinf(cost):
                 break
         else:
             raise RuntimeError("Could not find a valid grasp after 5 attempts")
 
+
+        self.pickHeight = height
         height_offset = np.array([0, 0, 0.3])
         stack_position = self.get_input_port(
             self._stack_position_index).Eval(context)
@@ -240,7 +243,7 @@ class StackingPlanner(LeafSystem):
             path="/stack", X_ParentPath=RigidTransform(stack_position))
         height_offset = np.array([0, 0, 0.1])
 
-        print(f"Planned a pick at time {context.get_time()}.")
+        print(f"Planned a pick at time {context.get_time()}.", "with height", height)
         mode.set_value(PickState(*MakeGripperTrajectories(frames),
                        target_stack_point=stack_position))
 

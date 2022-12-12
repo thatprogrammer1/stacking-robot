@@ -1,0 +1,107 @@
+<sdf xmlns:drake="drake.mit.edu" version="1.5">
+  <model name="pent">
+    <link name="pent_body_link">
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.028</mass>
+        <inertia>
+          <ixx>3.2265E-04</ixx>
+          <ixy>-8.4196E-11</ixy>
+          <ixz>-3.9581E-10</ixz>
+          <iyy>3.2265E-04</iyy>
+          <iyz>5.5091E-10</iyz>
+          <izz>4.1184E-04</izz>
+        </inertia>
+      </inertial>
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>pent_cyan.obj</uri>
+            <scale>1.0000E-02 1.0000E-02 1.0000E-02</scale>
+          </mesh>
+        </geometry>
+
+      </visual>
+      <collision name="collision_0000">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_000.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0001">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_001.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0002">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_002.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0003">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_003.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0004">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_004.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0005">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_005.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0006">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_006.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0007">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_007.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0008">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_008.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="collision_0009">
+        <geometry>
+          <mesh>
+            <uri>pent_parts/pent_convex_piece_009.obj</uri>
+            <drake:declare_convex/>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>

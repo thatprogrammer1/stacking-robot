@@ -64,18 +64,20 @@ directives:
     file: package://stacking/clutter_w_cameras.dmd.yaml
 """
 
+    colors = ["blue", "green", "cyan", "red", "yellow"]
+
     for i in range(2):
         model_directives += f"""
 - add_model:
     name: brick{i}
     file: package://drake/examples/manipulation_station/models/061_foam_brick.sdf
 """
-
+    
     for i in range(2):
-        model_directives += f"""
+            model_directives += f"""
 - add_model:
     name: pentagon{i}
-    file: package://stacking/pent.sdf
+    file: package://stacking/pent/pent_{colors[i]}.sdf
 """
 
 

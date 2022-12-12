@@ -16,7 +16,7 @@
       <visual name="visual">
         <geometry>
           <mesh>
-            <uri>pent.obj</uri>
+            <uri>pent_red.obj</uri>
             <scale>1.0000E-02 1.0000E-02 1.0000E-02</scale>
           </mesh>
         </geometry>

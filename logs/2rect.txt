@@ -1,0 +1,93 @@
+Recording with prism config:  PrismConfig(triangles=0, rectangles=2, pentagons=0)
+Using random seed:  8478204
+# of DBSCAN regions 2
+Planned a pick at time 5.1000000000000005. with height 0.013555172
+# of DBSCAN regions 2
+Planned a pick at time 33.800000000000004. with height 0.0135965245
+Success rate: 1/1
+Max stacked: [2]
+Using random seed:  6811567
+Detected fallen stack
+# of DBSCAN regions 2
+[0.58677775 0.19589432 0.01349825]
+Planned a clutter pick at time 5.1000000000000005. with height 0.013498252
+# of DBSCAN regions 2
+Planned a pick at time 20.900000000000002. with height 0.05343346
+# of DBSCAN regions 2
+Planned a pick at time 49.800000000000004. with height 0.023705795
+Success rate: 2/2
+Max stacked: [2, 2]
+Using random seed:  9168344
+# of DBSCAN regions 2
+Planned a pick at time 5.1000000000000005. with height 0.01831558
+# of DBSCAN regions 2
+Planned a pick at time 33.7. with height 0.018372942
+Success rate: 3/3
+Max stacked: [2, 2, 2]
+Using random seed:  8118705
+# of DBSCAN regions 2
+Planned a pick at time 5.1000000000000005. with height 0.028539773
+# of DBSCAN regions 2
+Planned a pick at time 33.5. with height 0.013339969
+Success rate: 4/4
+Max stacked: [2, 2, 2, 2]
+Using random seed:  6513795
+# of DBSCAN regions 2
+Planned a pick at time 5.1000000000000005. with height 0.024109047
+# of DBSCAN regions 2
+Planned a pick at time 34.6. with height 0.023247384
+Success rate: 5/5
+Max stacked: [2, 2, 2, 2, 2]
+Using random seed:  6929235
+# of DBSCAN regions 2
+Planned a pick at time 5.1000000000000005. with height 0.013522023
+# of DBSCAN regions 2
+Planned a pick at time 33.7. with height 0.023336641
+Success rate: 6/6
+Max stacked: [2, 2, 2, 2, 2, 2]
+Using random seed:  4097574
+# of DBSCAN regions 2
+Planned a pick at time 5.1000000000000005. with height 0.008142952
+# of DBSCAN regions 3
+Planned a pick at time 14.100000000000001. with height 0.028761327
+Detected fallen stack
+# of DBSCAN regions 2
+[0.59433144 0.20188764 0.00826214]
+Planned a clutter pick at time 42.2. with height 0.008262143
+# of DBSCAN regions 2
+Planned a pick at time 58.1. with height 0.019137844
+# of DBSCAN regions 2
+Planned a pick at time 87.7. with height 0.03841954
+Success rate: 7/7
+Max stacked: [2, 2, 2, 2, 2, 2, 2]
+Using random seed:  1963222
+Detected fallen stack
+# of DBSCAN regions 2
+[0.5992659  0.11161925 0.02340961]
+Planned a clutter pick at time 5.1000000000000005. with height 0.02340961
+# of DBSCAN regions 2
+Planned a pick at time 20.6. with height 0.033862356
+# of DBSCAN regions 2
+Planned a pick at time 49.6. with height 0.018466607
+Success rate: 8/8
+Max stacked: [2, 2, 2, 2, 2, 2, 2, 2]
+Using random seed:  8049070
+# of DBSCAN regions 2
+Planned a pick at time 5.1000000000000005. with height 0.014242396
+# of DBSCAN regions 2
+Planned a pick at time 33.300000000000004. with height 0.013743641
+# of DBSCAN regions 1
+Exception occured:  Could not find a valid grasp after 5 attempts
+Success rate: 8/9
+Max stacked: [2, 2, 2, 2, 2, 2, 2, 2, 1]
+Using random seed:  7618111
+Detected fallen stack
+# of DBSCAN regions 2
+[0.63468176 0.1197343  0.01368637]
+Planned a clutter pick at time 5.1000000000000005. with height 0.013686374
+# of DBSCAN regions 2
+Planned a pick at time 21.1. with height 0.013955163
+# of DBSCAN regions 2
+Planned a pick at time 50.300000000000004. with height 0.02829888
+Success rate: 9/10
+Max stacked: [2, 2, 2, 2, 2, 2, 2, 2, 1, 2]

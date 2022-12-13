@@ -49,5 +49,5 @@ class StackDetector(LeafSystem):
                             np.max(stack_points[2, :])))
         else:
             pos = [*self._stacking_zone_center, 0]
-        print("Highest point on stack: ", pos)
+        # print("Highest point on stack: ", pos)
         output.set_value(pos)

@@ -53,11 +53,13 @@ def clutter_clearing_demo(seed=None):
     meshcat.Flush()  # Wait for the large object meshes to get to meshcat.
     visualizer.StartRecording()
 
-    simulator.set_target_realtime_rate(1.0)
+    # run as fast as possible
+    simulator.set_target_realtime_rate(0)
     meshcat.AddButton("Stop Simulation", "Escape")
     print("Press Escape to stop the simulation")
     while meshcat.GetButtonClicks("Stop Simulation") < 1:
         simulator.AdvanceTo(simulator.get_context().get_time() + 2.0)
+        print(diagram.get_output_port().Eval(simulator.get_context()))
     visualizer.StopRecording()
     visualizer.PublishRecording()
     meshcat.DeleteButton("Stop Simulation")

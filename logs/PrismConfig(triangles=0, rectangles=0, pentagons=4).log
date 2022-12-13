@@ -1,3 +1,27 @@
 Recording with prism config: PrismConfig(triangles=0, rectangles=0, pentagons=4)
 Success rate: 1/1
 Max stacked: [4]
+exception occured, Took too long
+Success rate: 1/2
+Max stacked: [4, 2]
+exception occured, Could not find a valid grasp after 5 attempts
+Success rate: 1/3
+Max stacked: [4, 2, 3]
+exception occured, Took too long
+Success rate: 1/4
+Max stacked: [4, 2, 3, 3]
+exception occured, Took too long
+Success rate: 1/5
+Max stacked: [4, 2, 3, 3, 1]
+Success rate: 2/6
+Max stacked: [4, 2, 3, 3, 1, 4]
+Success rate: 3/7
+Max stacked: [4, 2, 3, 3, 1, 4, 4]
+exception occured, Took too long
+Success rate: 3/8
+Max stacked: [4, 2, 3, 3, 1, 4, 4, 3]
+exception occured, Could not find a valid grasp after 5 attempts
+Success rate: 3/9
+Max stacked: [4, 2, 3, 3, 1, 4, 4, 3, 2]
+Success rate: 4/10
+Max stacked: [4, 2, 3, 3, 1, 4, 4, 3, 2, 4]

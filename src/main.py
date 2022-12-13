@@ -89,10 +89,13 @@ def record_success_rate(prism_config):
         try:
             cnt += stacking_demo(prism_config, max_stacked_trials, i)
         except Exception as e:
+            with open('logs/' + str(prism_config)+'.log', 'a') as f:
+                f.write(f"exception occured, {e}")
+                f.write("\n")
             print("Exception occured: ", e)
         print(f"Success rate: {cnt}/{i+1}")
         print("Max stacked:", max_stacked_trials[:i+1])
-        with open('logs/' + str(prism_config)+'.log', 'w') as f:
+        with open('logs/' + str(prism_config)+'.log', 'a') as f:
             f.write(f"Success rate: {cnt}/{i+1}\n")
             f.write(f"Max stacked: {max_stacked_trials[:i+1]}\n")
 

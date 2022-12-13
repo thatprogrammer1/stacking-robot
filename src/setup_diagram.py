@@ -208,8 +208,8 @@ def BuildStackingDiagram(meshcat, seed, prism_config: PrismConfig):
                     planner.GetInputPort("iiwa_position"))
     builder.Connect(station.GetOutputPort("iiwa_torque_external"),
                     planner.GetInputPort("external_torque"))
-    builder.Connect(planner.GetOutputPort("is_placing"),
-                    monitor.GetInputPort("is_placing"))
+    builder.Connect(planner.GetOutputPort("is_home"),
+                    monitor.GetInputPort("is_home"))
 
     robot = station.GetSubsystemByName(
         "iiwa_controller").get_multibody_plant_for_control()

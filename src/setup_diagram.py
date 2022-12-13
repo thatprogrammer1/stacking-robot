@@ -193,7 +193,7 @@ def BuildStackingDiagram(meshcat, seed, prism_config: PrismConfig):
     builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
                     detector.GetInputPort("merged_pcd"))
     planner = builder.AddSystem(StackingPlanner(
-        plant, meshcat, clutter_disposal_spot=np.array([0.36, 0.0, 0.2])))
+        plant, meshcat, clutter_disposal_spot=np.array([0.4, 0.0, 0.2])))
     builder.Connect(detector.GetOutputPort("next_stack_position"),
                     planner.GetInputPort("stack_position"))
     builder.Connect(station.GetOutputPort("body_poses"),

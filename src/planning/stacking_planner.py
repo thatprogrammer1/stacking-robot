@@ -274,7 +274,7 @@ class StackingPlanner(LeafSystem):
         home[0] = q[0]  # Safer to not reset the first joint.
         mode.set_value(GoHomeState(
             PiecewisePolynomial.FirstOrderHold(
-                [current_time, current_time + 5.0], np.vstack((q, home)).T),
+                [current_time, current_time + 2.5], np.vstack((q, home)).T),
             stack_height_at_least=stack_height_at_least,
             clearing_clutter=clearing_clutter
         ))

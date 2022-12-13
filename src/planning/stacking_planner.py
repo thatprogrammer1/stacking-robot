@@ -125,6 +125,9 @@ class StackingPlanner(LeafSystem):
             "control_mode", lambda: AbstractValue.Make(InputPortIndex(0)),
             self.CalcControlMode)
         self.DeclareAbstractOutputPort(
+            "is_placing", lambda: AbstractValue.Make(False),
+            self.CalcIsPlacing)
+        self.DeclareAbstractOutputPort(
             "reset_diff_ik", lambda: AbstractValue.Make(False),
             self.CalcDiffIKReset)
         self.DeclareVectorOutputPort("iiwa_position_command", num_positions,
@@ -397,6 +400,10 @@ class StackingPlanner(LeafSystem):
             output.set_value(True)
         else:
             output.set_value(False)
+
+    def CalcIsPlacing(self, context, output):
+        mode = context.get_abstract_state(int(self._mode_index)).get_value()
+        output.set_value(isinstance(mode, PlaceState))
 
     def Initialize(self, context, discrete_state):
         discrete_state.set_value(

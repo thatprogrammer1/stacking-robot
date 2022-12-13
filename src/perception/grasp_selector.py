@@ -58,7 +58,7 @@ class GraspSelector(LeafSystem):
         down_sampled_pcd = self.get_input_port(
             self._point_cloud_index).Eval(context)
 
-        print("Num of segmented clouds", len(segmented_clouds))
+        # print("Num of segmented clouds", len(segmented_clouds))
 
         if True:
             # Visualize how the points are segmented
@@ -90,7 +90,7 @@ class GraspSelector(LeafSystem):
                 if len(costs) > 0:
                     best = np.argmin(costs)
                     p = points[best]
-                    print(p)
+                    # print(p)
                     height_from_ground = p[2]
                     output.set_value(
                         (costs[best], X_Gs[best], height_from_ground))
@@ -114,7 +114,7 @@ class GraspSelector(LeafSystem):
             points[0, :2, :] - self._stacking_zone_center[..., np.newaxis], axis=0) > self._stacking_zone_radius]
         num_points = grasp_points.shape[2]
 
-        print("Num of segmented clouds", len(segmented_clouds))
+        # print("Num of segmented clouds", len(segmented_clouds))
 
         if True:
             # Visualize how the points are segmented

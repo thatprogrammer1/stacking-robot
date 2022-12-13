@@ -32,13 +32,13 @@ class ColorSegmentation(LeafSystem):
             self._point_cloud_index).Eval(context)
         corepoints, labels = dbscan(pcd.xyzs().T, eps=0.01)
         print("# of DBSCAN regions", np.max(labels)+1)
-        
+
         segmented_points = []
         label_map = {label: ([], [], []) for label in range(np.max(labels)+1)}
 
         for label, point, color, normal in zip(labels, pcd.xyzs().T, pcd.rgbs().T, pcd.normals().T):
             # Noise label
-            if label==-1:
+            if label == -1:
                 continue
             label_map[label][0].append(point)
             label_map[label][1].append(color)
@@ -53,6 +53,6 @@ class ColorSegmentation(LeafSystem):
                 [np.random.randint(0, 256, 3)]*val[0].shape[1]).T
             new_pcd.mutable_normals()[:] = val[2]
             segmented_points.append(new_pcd)
-        print("Segmentation group keys:", label_map.keys())
-        print("Points per segmentation group", [x.size() for x in segmented_points])
+        # print("Segmentation group keys:", label_map.keys())
+        # print("Points per segmentation group", [x.size() for x in segmented_points])
         output.set_value(segmented_points)

@@ -17,7 +17,7 @@ class NoDiffIKWarnings(logging.Filter):
 logging.getLogger("drake").addFilter(NoDiffIKWarnings())
 
 
-def stacking_demo(prism_config: PrismConfig, seed=None):
+def stacking_demo(prism_config: PrismConfig, max_stacked_trials, trial_num=0,  seed=None):
     meshcat.Delete()
     if seed == None:
         seed = np.random.randint(10000000)
@@ -45,7 +45,7 @@ def stacking_demo(prism_config: PrismConfig, seed=None):
     for body_index in plant.GetFloatingBaseBodies():
         tf = RigidTransform(
             UniformlyRandomRotationMatrix(generator),
-            [rs.uniform(.5, 0.7), rs.uniform(-.2, .2), z])
+            [rs.uniform(.5, 0.7), rs.uniform(-.18, .2), z])
         plant.SetFreeBodyPose(plant_context,
                               plant.get_body(body_index),
                               tf)
@@ -59,11 +59,14 @@ def stacking_demo(prism_config: PrismConfig, seed=None):
     simulator.set_target_realtime_rate(0)
     meshcat.AddButton("Stop Simulation", "Escape")
     # print("Press Escape to stop the simulation")
+    max_stacked = 1
     while meshcat.GetButtonClicks("Stop Simulation") < 1:
-        if simulator.get_context().get_time() > 100:
+        if simulator.get_context().get_time() > 60 * sum(prism_config):
             raise Exception("Took too long")
         simulator.AdvanceTo(simulator.get_context().get_time() + 2.0)
         stats = diagram.get_output_port().Eval(simulator.get_context())
+        max_stacked = max(stats["max_stacked"], max_stacked)
+        max_stacked_trials[trial_num] = max_stacked
         if stats["max_stacked"] == sum(prism_config):
             return 1
         visualizer.StopRecording()
@@ -73,10 +76,20 @@ def stacking_demo(prism_config: PrismConfig, seed=None):
 
 
 meshcat = StartMeshcat()
-cnt = 0
-for i in range(100):
-    try:
-        cnt += stacking_demo(PrismConfig(0, 2, 0))
-    except Exception as e:
-        print("Exception occured: ", e)
-    print(f"Success rate: {cnt}/{i+1}")
+
+
+def record_success_rate():
+    cnt = 0
+    max_stacked_trials = [0]*100
+    for i in range(100):
+        try:
+            cnt += stacking_demo(PrismConfig(0, 2, 0), max_stacked_trials, i)
+        except Exception as e:
+            print("Exception occured: ", e)
+        print(f"Success rate: {cnt}/{i+1}")
+        print("Max stacked:", max_stacked_trials[:i+1])
+
+
+if __name__ == "__main__":
+    # stacking_demo(PrismConfig(0, 2, 0))
+    record_success_rate()

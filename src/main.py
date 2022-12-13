@@ -1,11 +1,12 @@
 
+from dataclasses import dataclass
 import logging
 
 import numpy as np
 from pydrake.all import (RandomGenerator, RigidTransform,
                          Simulator, UniformlyRandomRotationMatrix, StartMeshcat)
 
-from setup_diagram import BuildStackingDiagram
+from setup_diagram import BuildStackingDiagram, PrismConfig
 
 
 class NoDiffIKWarnings(logging.Filter):
@@ -16,7 +17,7 @@ class NoDiffIKWarnings(logging.Filter):
 logging.getLogger("drake").addFilter(NoDiffIKWarnings())
 
 
-def clutter_clearing_demo(seed=None):
+def stacking_demo(prism_config: PrismConfig, seed=None):
     meshcat.Delete()
     if seed == None:
         seed = np.random.randint(10000000)
@@ -24,7 +25,8 @@ def clutter_clearing_demo(seed=None):
     print("Using random seed: ", seed)
     rs = np.random.RandomState(seed)  # this is for python
     generator = RandomGenerator(rs.randint(1000))  # this is for c++
-    diagram, plant, visualizer = BuildStackingDiagram(meshcat, seed)
+    diagram, plant, visualizer = BuildStackingDiagram(
+        meshcat, seed, prism_config)
 
     # for idx in plant.GetJointIndices(plant.GetModelInstanceByName("iiwa")):
     #     print(plant.get_joint(idx).name())
@@ -56,14 +58,25 @@ def clutter_clearing_demo(seed=None):
     # run as fast as possible
     simulator.set_target_realtime_rate(0)
     meshcat.AddButton("Stop Simulation", "Escape")
-    print("Press Escape to stop the simulation")
+    # print("Press Escape to stop the simulation")
     while meshcat.GetButtonClicks("Stop Simulation") < 1:
+        if simulator.get_context().get_time() > 100:
+            raise Exception("Took too long")
         simulator.AdvanceTo(simulator.get_context().get_time() + 2.0)
-        print(diagram.get_output_port().Eval(simulator.get_context()))
-    visualizer.StopRecording()
+        stats = diagram.get_output_port().Eval(simulator.get_context())
+        if stats["max_stacked"] == sum(prism_config):
+            return 1
+        visualizer.StopRecording()
     visualizer.PublishRecording()
     meshcat.DeleteButton("Stop Simulation")
+    return 0
 
 
 meshcat = StartMeshcat()
-clutter_clearing_demo()
+cnt = 0
+for i in range(100):
+    try:
+        cnt += stacking_demo(PrismConfig(0, 2, 0))
+    except Exception as e:
+        print("Exception occured: ", e)
+    print(f"Success rate: {cnt}/{i+1}")

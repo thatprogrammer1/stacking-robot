@@ -1,0 +1,7 @@
+Recording with prism config: PrismConfig(triangles=0, rectangles=0, pentagons=3)
+Success rate: 1/1
+Max stacked: [3]
+Success rate: 2/2
+Max stacked: [3, 3]
+Success rate: 3/3
+Max stacked: [3, 3, 3]

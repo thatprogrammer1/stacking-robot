@@ -125,8 +125,8 @@ class StackingPlanner(LeafSystem):
             "control_mode", lambda: AbstractValue.Make(InputPortIndex(0)),
             self.CalcControlMode)
         self.DeclareAbstractOutputPort(
-            "is_placing", lambda: AbstractValue.Make(False),
-            self.CalcIsPlacing)
+            "is_home", lambda: AbstractValue.Make(False),
+            self.CalcIsHome)
         self.DeclareAbstractOutputPort(
             "reset_diff_ik", lambda: AbstractValue.Make(False),
             self.CalcDiffIKReset)
@@ -251,7 +251,7 @@ class StackingPlanner(LeafSystem):
             target_stack_point = mode_val.target_stack_point
 
             if not pose_trajectory.is_time_in_range(current_time):
-                # print("Going home after placing")
+                print("Going home after placing")
                 # stack height should increase after placing
                 self.GoHome(context, mode, current_time,
                             target_stack_point[2] + height_eps, False)
@@ -401,9 +401,9 @@ class StackingPlanner(LeafSystem):
         else:
             output.set_value(False)
 
-    def CalcIsPlacing(self, context, output):
+    def CalcIsHome(self, context, output):
         mode = context.get_abstract_state(int(self._mode_index)).get_value()
-        output.set_value(isinstance(mode, PlaceState))
+        output.set_value(isinstance(mode, GoHomeState))
 
     def Initialize(self, context, discrete_state):
         discrete_state.set_value(

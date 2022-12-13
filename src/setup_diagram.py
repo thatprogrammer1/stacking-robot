@@ -151,7 +151,7 @@ def BuildStackingDiagram(meshcat, seed, prism_config: PrismConfig):
 
     monitor = builder.AddSystem(Monitor(meshcat, plant))
     builder.Connect(station.GetOutputPort("body_poses"),
-                    monitor.get_input_port())
+                    monitor.GetInputPort("body_poses"))
     builder.ExportOutput(monitor.get_output_port(), "stats")
 
     merge_point_clouds = builder.AddSystem(
@@ -208,6 +208,8 @@ def BuildStackingDiagram(meshcat, seed, prism_config: PrismConfig):
                     planner.GetInputPort("iiwa_position"))
     builder.Connect(station.GetOutputPort("iiwa_torque_external"),
                     planner.GetInputPort("external_torque"))
+    builder.Connect(planner.GetOutputPort("is_placing"),
+                    monitor.GetInputPort("is_placing"))
 
     robot = station.GetSubsystemByName(
         "iiwa_controller").get_multibody_plant_for_control()

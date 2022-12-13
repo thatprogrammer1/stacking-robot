@@ -33,8 +33,10 @@ class Monitor(LeafSystem):
 
     def __init__(self, meshcat, plant):
         LeafSystem.__init__(self)
-        self.DeclareAbstractInputPort(
-            "body_poses", AbstractValue.Make([RigidTransform()]))
+        self._body_poses_index = self.DeclareAbstractInputPort(
+            "body_poses", AbstractValue.Make([RigidTransform()])).get_index()
+        self._is_placing_index = self.DeclareAbstractInputPort(
+            "is_placing", AbstractValue.Make(False)).get_index()
         self.DeclareAbstractOutputPort(
             "stats",
             lambda: AbstractValue.Make({}),
@@ -43,7 +45,8 @@ class Monitor(LeafSystem):
         self._plant = plant
 
     def CalcOutput(self, context, output):
-        poses = self.EvalAbstractInput(context, 0).get_value()
+        poses = self.get_input_port(self._body_poses_index).Eval(context)
+        is_placing = self.get_input_port(self._is_placing_index).Eval(context)
         plant = self._plant
         prisms = []
         for i in range(plant.num_model_instances()):
@@ -60,11 +63,12 @@ class Monitor(LeafSystem):
         for ind, prism1 in enumerate(prisms):
             cnt = 1
             for prism2 in prisms[ind:]:
-                # if x y pos is similar and abs(z1-z2)>=something,
+                # if x y pos is similar and something >= abs(z1-z2)>=something
+                # and is not placing,
                 # then assume they are stacked on top of each other
                 p2 = prism2.translation()
                 p1 = prism1.translation()
-                if np.linalg.norm(p2[:2] - p1[:2]) <= 0.06 and abs(p2[2]-p1[2]) >= 0.04:
+                if np.linalg.norm(p2[:2] - p1[:2]) <= 0.06 and abs(p2[2]-p1[2]) >= 0.02 and abs(p2[2]-p1[2]) <= 0.08 and not is_placing:
                     cnt += 1
             max_stacked = max(cnt, max_stacked)
 

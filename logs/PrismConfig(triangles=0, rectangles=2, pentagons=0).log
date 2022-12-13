@@ -1,0 +1,25 @@
+Recording with prism config: PrismConfig(triangles=0, rectangles=2, pentagons=0)
+Success rate: 1/1
+Max stacked: [2]
+Success rate: 2/2
+Max stacked: [2, 2]
+Success rate: 3/3
+Max stacked: [2, 2, 2]
+Success rate: 4/4
+Max stacked: [2, 2, 2, 2]
+Success rate: 5/5
+Max stacked: [2, 2, 2, 2, 2]
+Success rate: 6/6
+Max stacked: [2, 2, 2, 2, 2, 2]
+Success rate: 7/7
+Max stacked: [2, 2, 2, 2, 2, 2, 2]
+Success rate: 8/8
+Max stacked: [2, 2, 2, 2, 2, 2, 2, 2]
+Success rate: 9/9
+Max stacked: [2, 2, 2, 2, 2, 2, 2, 2, 2]
+exception occured, MultibodyPlant's discrete update solver failed to converge at simulation time = 0.233 with discrete update period = 0.001. This usually means that the plant's discrete update period is too large to resolve the system's dynamics for the given simulation conditions. This is often the case during abrupt collisions or during complex and fast changing contact configurations. Another common cause is the use of high gains in the simulation of closed loop systems. These might cause numerical instabilities given our discrete solver uses an explicit treatment of actuation inputs. Possible solutions include:
+  1. reduce the discrete update period set at construction,
+  2. decrease the high gains in your controller whenever possible,
+  3. switch to a continuous model (discrete update period is zero),      though this might affect the simulation run time.
+Success rate: 9/10
+Max stacked: [2, 2, 2, 2, 2, 2, 2, 2, 2, 0]

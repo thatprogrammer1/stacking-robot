@@ -5,3 +5,18 @@ Success rate: 2/2
 Max stacked: [3, 3]
 Success rate: 3/3
 Max stacked: [3, 3, 3]
+Success rate: 4/4
+Max stacked: [3, 3, 3, 3]
+Success rate: 5/5
+Max stacked: [3, 3, 3, 3, 3]
+Success rate: 6/6
+Max stacked: [3, 3, 3, 3, 3, 3]
+Success rate: 7/7
+Max stacked: [3, 3, 3, 3, 3, 3, 3]
+Success rate: 8/8
+Max stacked: [3, 3, 3, 3, 3, 3, 3, 3]
+exception occured, Could not find a valid grasp after 5 attempts
+Success rate: 8/9
+Max stacked: [3, 3, 3, 3, 3, 3, 3, 3, 2]
+Success rate: 9/10
+Max stacked: [3, 3, 3, 3, 3, 3, 3, 3, 2, 3]

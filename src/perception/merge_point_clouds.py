@@ -35,7 +35,7 @@ class MergePointClouds(LeafSystem):
         # TODO: change if we change bin size/location
         a = X_B.multiply([-.3+margin, -.3+margin, 0.015+margin])
         b = X_B.multiply([.3-margin, .3-0.025-margin, 0.5])
-        print(a, b)
+        # print(a, b)
         self._crop_lower = np.minimum(a, b)
         self._crop_upper = np.maximum(a, b)
 

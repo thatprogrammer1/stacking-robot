@@ -41,15 +41,15 @@ def MakePickFrames(initial_pose: RigidTransform, pick_pose: RigidTransform, clea
         scale = .5 / (p_G[0] - p_G[1])
         p_G[:1] /= scale
     prepare_pose.set_translation(p_G)
-    prepare_time = 10.0 * np.linalg.norm(X_GinitialGprepare.translation())
-    clearance_time = 10.0 * \
+    prepare_time = 4.0 * np.linalg.norm(X_GinitialGprepare.translation())
+    clearance_time = 5.0 * \
         np.linalg.norm(prepick_pose.translation() -
                        clearance_pose.translation())
 
     frames.append((t0, initial_pose, True))
     frames.append((frames[-1][0] + prepare_time, prepare_pose, True))
     frames.append((frames[-1][0] + prepare_time, prepick_pose, True))
-    frames.append((frames[-1][0] + 2.0, pick_pose, True))
+    frames.append((frames[-1][0] + 1.5, pick_pose, True))
     frames.append((frames[-1][0] + 2.0, pick_pose, False))
     frames.append((frames[-1][0] + 2.0, prepick_pose, False))
     frames.append((frames[-1][0] + clearance_time, clearance_pose, False))
@@ -79,7 +79,7 @@ def MakePlaceFrames(initial_pose: RigidTransform, place_pose: RigidTransform, t0
     frames = []
     X_GgraspGpregrasp = RigidTransform([0, -0.2, 0])
 
-    time_to_grasp = 10.0 * \
+    time_to_grasp = 7.0 * \
         np.linalg.norm(place_pose.translation() -
                        initial_pose.translation())
 

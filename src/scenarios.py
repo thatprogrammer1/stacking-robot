@@ -565,8 +565,7 @@ def MakeManipulationStation(callback, model_directives=None,
         # plant.GetModel
         model_labels[model_instance_name] = 100+i
         for body_ind in plant.GetBodyIndices(model_instance):
-            # print(model_instance_name)
-            # print(body_ind)
+            # print(model_instance_name, body_ind)
             frame_id = plant.GetBodyFrameIdOrThrow(body_ind)
             geometry_ids = inspector.GetGeometries(frame_id, Role.kPerception)
             for geom_id in geometry_ids:

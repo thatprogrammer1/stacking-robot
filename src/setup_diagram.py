@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from evaluation.monitor import Monitor
 from perception.color_segmentation import ColorSegmentation
 from perception.merge_point_clouds import MergePointClouds
 from planning.stack_detector import StackDetector
@@ -72,14 +73,13 @@ directives:
     name: brick{i}
     file: package://stacking/brick/brick_{colors[i]}.sdf
 """
-    
-    for i in range(2,4):
-            model_directives += f"""
+
+    for i in range(2, 4):
+        model_directives += f"""
 - add_model:
     name: pentagon{i}
     file: package://stacking/pent/pent_{colors[i]}.sdf
 """
-
 
     def callback(plant):
         pass
@@ -145,6 +145,11 @@ def BuildStackingDiagram(meshcat, seed):
     manip_station = GetStation()
     station = builder.AddSystem(manip_station)
     plant = station.GetSubsystemByName("plant")
+
+    monitor = builder.AddSystem(Monitor(meshcat, plant))
+    builder.Connect(station.GetOutputPort("body_poses"),
+                    monitor.get_input_port())
+    builder.ExportOutput(monitor.get_output_port(), "stats")
 
     merge_point_clouds = builder.AddSystem(
         MergePointClouds(plant,

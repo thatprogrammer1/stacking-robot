@@ -45,7 +45,7 @@ def stacking_demo(prism_config: PrismConfig, seed=None):
     for body_index in plant.GetFloatingBaseBodies():
         tf = RigidTransform(
             UniformlyRandomRotationMatrix(generator),
-            [rs.uniform(.5, 0.7), rs.uniform(-.2, .3), z])
+            [rs.uniform(.5, 0.7), rs.uniform(-.2, .2), z])
         plant.SetFreeBodyPose(plant_context,
                               plant.get_body(body_index),
                               tf)

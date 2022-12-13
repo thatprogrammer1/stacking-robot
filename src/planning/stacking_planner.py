@@ -251,7 +251,7 @@ class StackingPlanner(LeafSystem):
             target_stack_point = mode_val.target_stack_point
 
             if not pose_trajectory.is_time_in_range(current_time):
-                print("Going home after placing")
+                # print("Going home after placing")
                 # stack height should increase after placing
                 self.GoHome(context, mode, current_time,
                             target_stack_point[2] + height_eps, False)
@@ -277,7 +277,7 @@ class StackingPlanner(LeafSystem):
         home[0] = q[0]  # Safer to not reset the first joint.
         mode.set_value(GoHomeState(
             PiecewisePolynomial.FirstOrderHold(
-                [current_time, current_time + 2.5], np.vstack((q, home)).T),
+                [current_time, current_time + 5], np.vstack((q, home)).T),
             stack_height_at_least=stack_height_at_least,
             clearing_clutter=clearing_clutter
         ))

@@ -1,4 +1,5 @@
 
+import argparse
 from dataclasses import dataclass
 import logging
 
@@ -45,7 +46,7 @@ def stacking_demo(prism_config: PrismConfig, max_stacked_trials, trial_num=0,  s
     for body_index in plant.GetFloatingBaseBodies():
         tf = RigidTransform(
             UniformlyRandomRotationMatrix(generator),
-            [rs.uniform(.5, 0.7), rs.uniform(-.18, .2), z])
+            [rs.uniform(.5, 0.7), rs.uniform(-.13, .2), z])
         plant.SetFreeBodyPose(plant_context,
                               plant.get_body(body_index),
                               tf)
@@ -78,18 +79,30 @@ def stacking_demo(prism_config: PrismConfig, max_stacked_trials, trial_num=0,  s
 meshcat = StartMeshcat()
 
 
-def record_success_rate():
+def record_success_rate(prism_config):
+    print("Recording with prism config: ", prism_config)
+    with open('logs/' + str(prism_config)+'.log', 'w') as f:
+        f.write(f"Recording with prism config: {prism_config}\n")
     cnt = 0
-    max_stacked_trials = [0]*100
-    for i in range(100):
+    max_stacked_trials = [0]*10
+    for i in range(10):
         try:
-            cnt += stacking_demo(PrismConfig(0, 2, 0), max_stacked_trials, i)
+            cnt += stacking_demo(prism_config, max_stacked_trials, i)
         except Exception as e:
             print("Exception occured: ", e)
         print(f"Success rate: {cnt}/{i+1}")
         print("Max stacked:", max_stacked_trials[:i+1])
+        with open('logs/' + str(prism_config)+'.log', 'w') as f:
+            f.write(f"Success rate: {cnt}/{i+1}\n")
+            f.write(f"Max stacked: {max_stacked_trials[:i+1]}\n")
 
 
 if __name__ == "__main__":
     # stacking_demo(PrismConfig(0, 2, 0))
-    record_success_rate()
+    parser = argparse.ArgumentParser(
+        prog='Stacking Demo')
+    parser.add_argument('-r', '--rect', default='0')
+    parser.add_argument('-p', '--pent', default='0')
+
+    args = parser.parse_args()
+    record_success_rate(PrismConfig(0, int(args.rect), int(args.pent)))

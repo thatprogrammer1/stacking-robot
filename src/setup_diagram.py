@@ -1,3 +1,4 @@
+from collections import namedtuple
 import os
 import numpy as np
 from evaluation.monitor import Monitor
@@ -16,6 +17,8 @@ from pydrake.all import LeafSystem
 import random
 
 # Simulation tuning pset code
+
+PrismConfig = namedtuple("PrismConfig", "triangles rectangles pentagons")
 
 
 def AddBox(plant, shape, name, mass=1, mu=10, color=[.5, .5, .9, 1.0], pose=RigidTransform()):
@@ -54,7 +57,7 @@ def AddPrism(plant, points_2d, height, name, mass=1, mu=10, color=[.5, .5, .9, 1
     plant.RegisterVisualGeometry(body, pose, shape, name, color)
 
 
-def GetStation():
+def GetStation(prism_config: PrismConfig):
     """
     Create a manipulation station with our own model package loaded.
     Modify model directives to change what models we include.
@@ -67,17 +70,17 @@ directives:
 
     colors = ["blue", "green", "cyan", "red", "yellow"]
     random.shuffle(colors)
-    for i in range(2):
+    for i in range(prism_config.rectangles):
         model_directives += f"""
 - add_model:
-    name: brick{i}
+    name: brick{i%len(colors)}
     file: package://stacking/brick/brick_{colors[i]}.sdf
 """
 
-    for i in range(2, 4):
+    for i in range(prism_config.rectangles, prism_config.rectangles + prism_config.pentagons):
         model_directives += f"""
 - add_model:
-    name: pentagon{i}
+    name: pentagon{i%len(colors)}
     file: package://stacking/pent/pent_{colors[i]}.sdf
 """
 
@@ -140,9 +143,9 @@ def BuildStaticDiagram(meshcat):
     return builder.Build(), plant
 
 
-def BuildStackingDiagram(meshcat, seed):
+def BuildStackingDiagram(meshcat, seed, prism_config: PrismConfig):
     builder = DiagramBuilder()
-    manip_station = GetStation()
+    manip_station = GetStation(prism_config)
     station = builder.AddSystem(manip_station)
     plant = station.GetSubsystemByName("plant")
 
@@ -190,7 +193,7 @@ def BuildStackingDiagram(meshcat, seed):
     builder.Connect(merge_point_clouds.GetOutputPort("point_cloud"),
                     detector.GetInputPort("merged_pcd"))
     planner = builder.AddSystem(StackingPlanner(
-        plant, meshcat, np.array([0.3, 0.0, 0.2])))
+        plant, meshcat, clutter_disposal_spot=np.array([0.3, 0.0, 0.2])))
     builder.Connect(detector.GetOutputPort("next_stack_position"),
                     planner.GetInputPort("stack_position"))
     builder.Connect(station.GetOutputPort("body_poses"),

@@ -24,7 +24,8 @@ def stacking_demo(prism_config: PrismConfig, seed=None):
     if seed == None:
         seed = np.random.randint(10000000)
     # Good seeds,  7079183
-    print("Using random seed: ", seed)
+    print("Using random seed:", seed)
+    print("Using prism config:",  prism_config)
     rs = np.random.RandomState(seed)  # this is for python
     generator = RandomGenerator(rs.randint(1000))  # this is for c++
     diagram, plant, visualizer = BuildStackingDiagram(
@@ -73,11 +74,11 @@ def stacking_demo(prism_config: PrismConfig, seed=None):
 
 
 if __name__ == "__main__":
-    meshcat = StartMeshcat()
     parser = argparse.ArgumentParser(
         prog='Demo stacking robot')
-    parser.add_argument('-r', '--rect', default='0')
+    parser.add_argument('-r', '--rect', default='2')
     parser.add_argument('-p', '--pent', default='0')
 
     args = parser.parse_args()
+    meshcat = StartMeshcat()
     stacking_demo(PrismConfig(0, int(args.rect), int(args.pent)))

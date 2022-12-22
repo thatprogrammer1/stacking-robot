@@ -73,15 +73,15 @@ directives:
     for i in range(prism_config.rectangles):
         model_directives += f"""
 - add_model:
-    name: brick{i%len(colors)}
-    file: package://stacking/brick/brick_{colors[i]}.sdf
+    name: brick{i}
+    file: package://stacking/brick/brick_{colors[i%len(colors)]}.sdf
 """
 
     for i in range(prism_config.rectangles, prism_config.rectangles + prism_config.pentagons):
         model_directives += f"""
 - add_model:
-    name: pentagon{i%len(colors)}
-    file: package://stacking/pent/pent_{colors[i]}.sdf
+    name: pentagon{i}
+    file: package://stacking/pent/pent_{colors[i%len(colors)]}.sdf
 """
 
     def callback(plant):
